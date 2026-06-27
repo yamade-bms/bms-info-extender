@@ -11,16 +11,11 @@
 // @match        https://stellabms.xyz/*
 // @match        https://www.gaftalk.com/minir/*
 // @match        https://mocha-repository.info/song.php*
-// @grant        GM_addStyle
-// @grant        GM_getValue
-// @grant        GM_getResourceText
-// @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
 // @connect      api.bmssearch.net
 // @connect      bms.howan.jp
 // @connect      boku.tachi.ac
 // @connect      bms-info-extender.netlify.app
-// @resource     googlefont https://fonts.googleapis.com/css2?family=Inconsolata&family=Noto+Sans+JP&display=swap
 // @updateURL    https://neeted.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
 // @downloadURL  https://neeted.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
 // @run-at       document-start
@@ -11968,8 +11963,10 @@
   (function() {
     "use strict";
     console.info("BMS Info Extenderが起動しました");
-    const fontCSS = GM_getResourceText("googlefont");
-    GM_addStyle(fontCSS);
+    const fontLink = document.createElement("link");
+    fontLink.rel = "stylesheet";
+    fontLink.href = "https://fonts.googleapis.com/css2?family=Inconsolata&family=Noto+Sans+JP&display=swap";
+    document.documentElement.appendChild(fontLink);
     const SCORE_BASE_URL = "https://bms-info-extender.netlify.app/score";
     const SCORE_R2_BASE_URL = "https://bms.howan.jp/score";
     const BMSSEARCH_PATTERN_PAGE_BASE_URL2 = "https://bmssearch.net/patterns";
@@ -12468,21 +12465,17 @@
       return parsedParts;
     }
     function getLastNotifiedVersion() {
-      return typeof GM_getValue === "function" ? String(GM_getValue(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion, "")) : "";
+      return localStorage.getItem(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion) ?? "";
     }
     function persistNotifiedVersion(version) {
-      if (typeof GM_setValue === "function") {
-        GM_setValue(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion, version);
-      }
+      localStorage.setItem(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion, version);
     }
     function getPersistedNotificationLanguage() {
-      const persistedLanguage = typeof GM_getValue === "function" ? String(GM_getValue(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage, VERSION_NOTIFICATION_DEFAULT_LANGUAGE)) : VERSION_NOTIFICATION_DEFAULT_LANGUAGE;
+      const persistedLanguage = localStorage.getItem(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage) ?? VERSION_NOTIFICATION_DEFAULT_LANGUAGE;
       return persistedLanguage === "en" ? "en" : "ja";
     }
     function persistNotificationLanguage(language) {
-      if (typeof GM_setValue === "function") {
-        GM_setValue(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage, language === "en" ? "en" : "ja");
-      }
+      localStorage.setItem(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage, language === "en" ? "en" : "ja");
     }
     function ensureDocumentBodyReady() {
       if (document.body) {
@@ -13183,12 +13176,11 @@
       resetActiveBmsPreviewRuntime();
       const previewPreferenceStorage = createPreviewPreferenceStorage({
         read: (key, fallbackValue) => {
-          return typeof GM_getValue === "function" ? GM_getValue(key, fallbackValue) : fallbackValue;
+          const stored = localStorage.getItem(key);
+          return stored !== null ? stored : fallbackValue;
         },
         write: (key, value) => {
-          if (typeof GM_setValue === "function") {
-            GM_setValue(key, value);
-          }
+          localStorage.setItem(key, value);
         }
       });
       container.__bmsPreviewRuntime = createBmsInfoPreview({

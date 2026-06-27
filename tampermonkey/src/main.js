@@ -8,8 +8,10 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
   console.info("BMS Info Extenderが起動しました");
 
   // 使用するフォントを準備
-  const fontCSS = GM_getResourceText("googlefont");
-  GM_addStyle(fontCSS);
+  const fontLink = document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Inconsolata&family=Noto+Sans+JP&display=swap';
+  document.documentElement.appendChild(fontLink);
 
   const SCORE_BASE_URL = "https://bms-info-extender.netlify.app/score";
   const SCORE_R2_BASE_URL = "https://bms.howan.jp/score";
@@ -616,28 +618,20 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
   }
 
   function getLastNotifiedVersion() {
-    return typeof GM_getValue === "function"
-      ? String(GM_getValue(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion, ""))
-      : "";
+    return localStorage.getItem(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion) ?? "";
   }
 
   function persistNotifiedVersion(version) {
-    if (typeof GM_setValue === "function") {
-      GM_setValue(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion, version);
-    }
+    localStorage.setItem(VERSION_NOTIFICATION_STORAGE_KEYS.lastNotifiedVersion, version);
   }
 
   function getPersistedNotificationLanguage() {
-    const persistedLanguage = typeof GM_getValue === "function"
-      ? String(GM_getValue(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage, VERSION_NOTIFICATION_DEFAULT_LANGUAGE))
-      : VERSION_NOTIFICATION_DEFAULT_LANGUAGE;
+    const persistedLanguage = localStorage.getItem(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage) ?? VERSION_NOTIFICATION_DEFAULT_LANGUAGE;
     return persistedLanguage === "en" ? "en" : "ja";
   }
 
   function persistNotificationLanguage(language) {
-    if (typeof GM_setValue === "function") {
-      GM_setValue(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage, language === "en" ? "en" : "ja");
-    }
+    localStorage.setItem(VERSION_NOTIFICATION_STORAGE_KEYS.notificationLanguage, language === "en" ? "en" : "ja");
   }
 
   function ensureDocumentBodyReady() {
@@ -1566,14 +1560,11 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     resetActiveBmsPreviewRuntime();
     const previewPreferenceStorage = PreviewRuntime.createPreviewPreferenceStorage({
       read: (key, fallbackValue) => {
-        return typeof GM_getValue === "function"
-          ? GM_getValue(key, fallbackValue)
-          : fallbackValue;
+        const stored = localStorage.getItem(key);
+        return stored !== null ? stored : fallbackValue;
       },
       write: (key, value) => {
-        if (typeof GM_setValue === "function") {
-          GM_setValue(key, value);
-        }
+        localStorage.setItem(key, value);
       },
     });
     container.__bmsPreviewRuntime = PreviewRuntime.createBmsInfoPreview({
