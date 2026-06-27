@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         BMS Info Extender
-// @namespace    https://github.com/Neeted
+// @name         BMS Info Extender for iOS Userscripts
+// @namespace    https://github.com/yamade-bms
 // @version      2.3.17
 // @description  BMS-IR、Bokutachi、MinIR、Mocha、STELLAVERSEで詳細メタデータ、ノーツ分布/BPM推移グラフ、譜面ビューアなどを表示する
-// @author       ﾏﾝﾊｯﾀﾝｶﾞｯﾌｪ
+// @author       ﾏﾝﾊｯﾀﾝｶﾞｯﾌｪ (fork: yamade)
 // @match        http://www.dream-pro.info/new/song*
 // @match        https://bms-ir.org/new/song*
 // @match        https://www.bms-ir.org/new/song*
@@ -16,8 +16,8 @@
 // @connect      bms.howan.jp
 // @connect      boku.tachi.ac
 // @connect      bms-info-extender.netlify.app
-// @updateURL    https://neeted.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
-// @downloadURL  https://neeted.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
+// @updateURL    https://yamade-bms.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
+// @downloadURL  https://yamade-bms.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
 // @run-at       document-start
 // ==/UserScript==
 // 2.3.17 BMS-IR曲ページで拡張パネルをタグパネル手前へ挿入し、曲名手前へのフォールバックを追加
