@@ -3,6 +3,7 @@ import {
   createBmsInfoPreview,
   createPreviewPreferenceStorage,
   fetchBmsInfoRecordByIdentifiers,
+  PREVIEW_LINK_SITE,
 } from "../../../../shared/preview-runtime/index.js";
 import {
   createScoreViewerModel,
@@ -628,6 +629,7 @@ function ensurePreviewRuntime() {
   state.previewRuntime = createBmsInfoPreview({
     container: previewContainer,
     documentRef: document,
+    currentSite: PREVIEW_LINK_SITE.viewer,
     loadParsedScore: async (record) => {
       if (state.parsedScore && state.sha256 === record.sha256) {
         return state.parsedScore;

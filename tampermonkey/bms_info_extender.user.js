@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BMS Info Extender
 // @namespace    https://github.com/Neeted
-// @version      2.3.17
+// @version      2.3.18
 // @description  BMS-IR、Bokutachi、MinIR、Mocha、STELLAVERSEで詳細メタデータ、ノーツ分布/BPM推移グラフ、譜面ビューアなどを表示する
 // @author       ﾏﾝﾊｯﾀﾝｶﾞｯﾌｪ
 // @match        http://www.dream-pro.info/new/song*
@@ -9,6 +9,7 @@
 // @match        https://www.bms-ir.org/new/song*
 // @match        https://boku.tachi.ac/*
 // @match        https://stellabms.xyz/*
+// @match        https://ir.stellabms.xyz/*
 // @match        https://www.gaftalk.com/minir/*
 // @match        https://mocha-repository.info/song.php*
 // @grant        GM_addStyle
@@ -25,6 +26,7 @@
 // @downloadURL  https://neeted.github.io/bms-info-extender/tampermonkey/bms_info_extender.user.js
 // @run-at       document-start
 // ==/UserScript==
+// 2.3.18 STELLAVERSE IR曲ページへのメタデータ表示とLINK追加、LINK並び順と現在サイトリンク非表示を調整
 // 2.3.17 BMS-IR曲ページで拡張パネルをタグパネル手前へ挿入し、曲名手前へのフォールバックを追加
 // 2.3.16 Bokutachi譜面ページへのメタデータ表示に対応、Bokutachiページの@match調整とShadow DOM内UIの基準フォントサイズ明示
 // 2.3.15 Bokutachi linkをTachi hash resolve APIで解決するように変更し、STELLAVERSE既存リンク流用を廃止
@@ -6487,6 +6489,7 @@
 
   // shared/preview-runtime/index.js
   var BMS_IR_SONG_BASE_URL = "https://bms-ir.org/new/song";
+  var STELLAVERSE_IR_CHART_BASE_URL = "https://ir.stellabms.xyz/charts";
   var BMSSEARCH_PATTERN_API_BASE_URL = "https://api.bmssearch.net/v1/patterns/sha256";
   var BMSSEARCH_PATTERN_PAGE_BASE_URL = "https://bmssearch.net/patterns";
   var BOKUTACHI_BASE_URL = "https://boku.tachi.ac";
@@ -6544,6 +6547,17 @@
   var PREVIEW_RENDER_ALL = Object.values(PREVIEW_RENDER_DIRTY).reduce((mask, flag) => mask | flag, 0);
   var bmsSearchPatternAvailabilityCache = /* @__PURE__ */ new Map();
   var bokutachiResolveCache = /* @__PURE__ */ new Map();
+  var PREVIEW_LINK_SITE = Object.freeze({
+    bmsIr: "bms-ir",
+    stellaverseIr: "stellaverse-ir",
+    minir: "minir",
+    mocha: "mocha",
+    bokutachi: "bokutachi",
+    viewer: "viewer",
+    ez2pattern: "ez2pattern",
+    bmsSearch: "bms-search",
+    stellaverse: "stellaverse"
+  });
   function createPreviewPreferenceStorage({ read = () => null, write = () => {
   } } = {}) {
     return {
@@ -6857,6 +6871,7 @@
   .bd-info td { border: unset; padding: 1.6px 3.2px; height: 16px; white-space: nowrap; font-size: 14px; }
   .bd-info .bd-header-cell { background-color: var(--bd-hdbk); color: var(--bd-hdtx); }
   .bd-info .bd-lanenote { margin-right: 3.2px; padding: 1.6px 3.2px; border-radius: 2px; font-size: 12px; }
+  #bd-graph { display: block; line-height: 0; font-size: 0; }
   .bd-table-list { flex: 1; display: flex; min-width: 100px; flex-direction: column; box-sizing: border-box; }
   .bd-table-list .bd-header-cell { padding: 1.6px 3.2px; min-height: 16px; white-space: nowrap; font-size: 14px; color: var(--bd-hdtx); display: flex; align-items: center; }
   .bd-table-scroll { overflow: auto; flex: 1 1 auto; scrollbar-color: var(--bd-hdbk) white; scrollbar-width: thin; }
@@ -7088,7 +7103,7 @@
     color: #fff;
     font-family: ${ISOLATED_UI_FONT_FAMILY};
     font-size: ${ISOLATED_UI_ROOT_FONT_SIZE};
-    line-height: 1.25;
+    line-height: 0;
     box-sizing: border-box;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
@@ -7100,7 +7115,8 @@
 
   .bmsie-graph-surface {
     position: relative;
-    display: inline-block;
+    display: block;
+    inline-size: max-content;
     min-inline-size: 100%;
     line-height: 0;
     background: #000;
@@ -7691,7 +7707,7 @@
         <tr>
           <td class="bd-header-cell">LINK</td>
           <td colspan="3">
-            <a href="" id="bd-bmsir" style="display: none;">BMS-IR</a><a href="" id="bd-minir" style="display: none;">MinIR</a><a href="" id="bd-mocha" style="display: none;">Mocha</a><a href="" id="bd-viewer" style="display: none;">Viewer</a><a href="" id="bd-ez2pattern" style="display: none;">EZ2PT</a><a href="" id="bd-bmssearch" style="display: none;">BMS<span style="display:inline-block; width:2px;"></span>SEARCH</a><a href="" id="bd-bokutachi" style="display: none;">Bokutachi</a><a href="" id="bd-stellaverse" style="display: none;">STELLAVERSE</a>
+            <a href="" id="bd-bmsir" style="display: none;">BMS-IR</a><a href="" id="bd-stellaverse-ir" style="display: none;">STELLAVERSE<span style="display:inline-block; width:2px;"></span>IR</a><a href="" id="bd-minir" style="display: none;">MinIR</a><a href="" id="bd-mocha" style="display: none;">Mocha</a><a href="" id="bd-bokutachi" style="display: none;">Bokutachi</a><a href="" id="bd-viewer" style="display: none;">Viewer</a><a href="" id="bd-ez2pattern" style="display: none;">EZ2PT</a><a href="" id="bd-bmssearch" style="display: none;">BMS<span style="display:inline-block; width:2px;"></span>SEARCH</a><a href="" id="bd-stellaverse" style="display: none;">STELLAVERSE</a>
           </td>
         </tr>
         <tr>
@@ -7842,13 +7858,22 @@
     }
     return cachedPromise;
   }
-  async function renderBmsSearchLinkIfAvailable(container, sha256) {
+  async function renderBmsSearchLinkIfAvailable(container, sha256, { currentSite = null } = {}) {
+    const bmsSearchLink = queryBmsDataElement(container, "bd-bmssearch");
+    if (!bmsSearchLink) {
+      return;
+    }
+    const renderToken = {};
+    bmsSearchLink.__bmsSearchRenderToken = renderToken;
+    hideLink(bmsSearchLink);
     try {
+      if (currentSite === PREVIEW_LINK_SITE.bmsSearch) {
+        return;
+      }
       if (!sha256 || !await checkBmsSearchPatternExists(sha256) || !container.isConnected) {
         return;
       }
-      const bmsSearchLink = queryBmsDataElement(container, "bd-bmssearch");
-      if (!bmsSearchLink) {
+      if (bmsSearchLink.__bmsSearchRenderToken !== renderToken) {
         return;
       }
       showLink(bmsSearchLink, `${BMSSEARCH_PATTERN_PAGE_BASE_URL}/${sha256}`);
@@ -7933,19 +7958,24 @@
     }
     return null;
   }
-  async function appendBokutachiLinkIfAvailable(container, record) {
+  async function appendBokutachiLinkIfAvailable(container, record, { currentSite = null } = {}) {
     const link = queryBmsDataElement(container, "bd-bokutachi");
     if (!link) {
       return;
     }
-    hideBokutachiLink(link);
+    const renderToken = {};
+    link.__bmsBokutachiRenderToken = renderToken;
+    hideLink(link);
+    if (currentSite === PREVIEW_LINK_SITE.bokutachi) {
+      return;
+    }
     const requestKey = createBokutachiResolveRequestKey(record);
     link.__bmsBokutachiResolveRequestKey = requestKey;
     if (!requestKey) {
       return;
     }
     const url = await resolveBokutachiSongUrl(record);
-    if (!url || !link.isConnected || link.__bmsBokutachiResolveRequestKey !== requestKey) {
+    if (!url || !link.isConnected || link.__bmsBokutachiResolveRequestKey !== requestKey || link.__bmsBokutachiRenderToken !== renderToken) {
       return;
     }
     link.href = url;
@@ -7954,9 +7984,9 @@
     link.setAttribute("rel", "noopener noreferrer");
     link.style.display = "inline";
   }
-  function renderBmsData(container, normalizedRecord) {
+  function renderBmsData(container, normalizedRecord, { currentSite = null } = {}) {
     const getById = (id) => queryBmsDataElement(container, id);
-    renderLinks(container, normalizedRecord);
+    renderLinks(container, normalizedRecord, { currentSite });
     getById("bd-sha256").textContent = normalizedRecord.sha256;
     getById("bd-md5").textContent = normalizedRecord.md5;
     getById("bd-bmsid").textContent = normalizedRecord.bmsid ? normalizedRecord.bmsid : "Undefined";
@@ -7993,8 +8023,8 @@
     renderLaneNotes(container, normalizedRecord);
     renderTables(container, normalizedRecord);
     container.style.display = "block";
-    void renderBmsSearchLinkIfAvailable(container, normalizedRecord.sha256);
-    void appendBokutachiLinkIfAvailable(container, normalizedRecord);
+    void renderBmsSearchLinkIfAvailable(container, normalizedRecord.sha256, { currentSite });
+    void appendBokutachiLinkIfAvailable(container, normalizedRecord, { currentSite });
   }
   function renderTextWithTooltip(element, text, tooltipText) {
     element.textContent = text;
@@ -8145,7 +8175,8 @@
     onViewerOpenChange = () => {
     },
     onRuntimeError = () => {
-    }
+    },
+    currentSite = null
   }) {
     const graphHost = queryBmsDataElement(container, "bd-graph");
     if (!graphHost) {
@@ -8531,7 +8562,7 @@
         return;
       }
       if (recordChanged) {
-        renderBmsData(container, normalizedRecord);
+        renderBmsData(container, normalizedRecord, { currentSite });
         shell.style.setProperty("--score-viewer-width", `${getActiveViewerWidth(state, normalizedRecord.mode)}px`);
         renderMask |= PREVIEW_RENDER_DIRTY.record;
       }
@@ -9171,20 +9202,50 @@
       setViewerDetailSettingsOpen(false);
     }
   }
-  function renderLinks(container, normalizedRecord) {
+  function renderLinks(container, normalizedRecord, { currentSite = null } = {}) {
     const getById = (id) => queryBmsDataElement(container, id);
+    const shouldShowSite = (siteId) => currentSite !== siteId;
+    resetMetadataLinks(container);
     if (normalizedRecord.md5) {
-      showLink(getById("bd-bmsir"), createBmsIrSongUrl(normalizedRecord.md5));
-      showLink(getById("bd-viewer"), `https://bms-score-viewer.pages.dev/view?md5=${normalizedRecord.md5}`);
+      if (shouldShowSite(PREVIEW_LINK_SITE.bmsIr)) {
+        showLink(getById("bd-bmsir"), createBmsIrSongUrl(normalizedRecord.md5));
+      }
+      if (shouldShowSite(PREVIEW_LINK_SITE.stellaverseIr)) {
+        showLink(getById("bd-stellaverse-ir"), createStellaverseIrChartUrl(normalizedRecord.md5));
+      }
+      if (shouldShowSite(PREVIEW_LINK_SITE.viewer)) {
+        showLink(getById("bd-viewer"), `https://bms-score-viewer.pages.dev/view?md5=${normalizedRecord.md5}`);
+      }
     }
     if (normalizedRecord.sha256) {
-      showLink(getById("bd-minir"), `https://www.gaftalk.com/minir/#/viewer/song/${normalizedRecord.sha256}/0`);
-      showLink(getById("bd-mocha"), `https://mocha-repository.info/song.php?sha256=${normalizedRecord.sha256}`);
-      showLink(getById("bd-ez2pattern"), `https://ez2pattern.kr/bms/chart?sha256=${normalizedRecord.sha256}`);
+      if (shouldShowSite(PREVIEW_LINK_SITE.minir)) {
+        showLink(getById("bd-minir"), `https://www.gaftalk.com/minir/#/viewer/song/${normalizedRecord.sha256}/0`);
+      }
+      if (shouldShowSite(PREVIEW_LINK_SITE.mocha)) {
+        showLink(getById("bd-mocha"), `https://mocha-repository.info/song.php?sha256=${normalizedRecord.sha256}`);
+      }
+      if (shouldShowSite(PREVIEW_LINK_SITE.ez2pattern)) {
+        showLink(getById("bd-ez2pattern"), `https://ez2pattern.kr/bms/chart?sha256=${normalizedRecord.sha256}`);
+      }
     }
-    if (normalizedRecord.stella) {
+    if (normalizedRecord.stella && shouldShowSite(PREVIEW_LINK_SITE.stellaverse)) {
       showLink(getById("bd-stellaverse"), `https://stellabms.xyz/song/${normalizedRecord.stella}`);
     }
+  }
+  function resetMetadataLinks(container) {
+    [
+      "bd-bmsir",
+      "bd-stellaverse-ir",
+      "bd-minir",
+      "bd-mocha",
+      "bd-bokutachi",
+      "bd-viewer",
+      "bd-ez2pattern",
+      "bd-bmssearch",
+      "bd-stellaverse"
+    ].forEach((id) => {
+      hideLink(queryBmsDataElement(container, id));
+    });
   }
   function renderLaneNotes(container, normalizedRecord) {
     const laneNotesContainer = queryBmsDataElement(container, "bd-lanenotes-div");
@@ -9335,7 +9396,7 @@
     }
     return `${BOKUTACHI_BASE_URL}/games/${encodeURIComponent(game)}/songs/${encodeURIComponent(normalizedSongID)}/${encodeURIComponent(normalizedDifficulty)}`;
   }
-  function hideBokutachiLink(link) {
+  function hideLink(link) {
     if (!link) {
       return;
     }
@@ -9349,6 +9410,9 @@
   }
   function createBmsIrSongUrl(md5) {
     return `${BMS_IR_SONG_BASE_URL}?songmd5=${encodeURIComponent(md5)}&view=both`;
+  }
+  function createStellaverseIrChartUrl(md5) {
+    return `${STELLAVERSE_IR_CHART_BASE_URL}/${encodeURIComponent(md5)}`;
   }
   function showLink(linkElement, href) {
     if (!linkElement) {
@@ -11973,7 +12037,7 @@
     const SCORE_BASE_URL = "https://bms-info-extender.netlify.app/score";
     const SCORE_R2_BASE_URL = "https://bms.howan.jp/score";
     const BMSSEARCH_PATTERN_PAGE_BASE_URL2 = "https://bmssearch.net/patterns";
-    const SCRIPT_VERSION_FALLBACK = "2.3.17";
+    const SCRIPT_VERSION_FALLBACK = "2.3.18";
     const userscriptFetch = createUserscriptFetch();
     setPreviewRuntimeFetch(userscriptFetch);
     const SKIP_VERSION_NOTIFICATION_FROM = "2.3.0";
@@ -12295,6 +12359,9 @@
     const BMS_IR_MD5_PATTERN = /^[0-9a-fA-F]{32}$/;
     const BOKUTACHI_HOST = "boku.tachi.ac";
     const BOKUTACHI_CHART_PATH_PATTERN = /^\/games\/([^/]+)\/charts\/([^/]+)\/?$/;
+    const STELLAVERSE_IR_HOST = "ir.stellabms.xyz";
+    const STELLAVERSE_IR_CHART_PATH_PATTERN = /^\/charts\/([0-9a-fA-F]{32})\/?$/;
+    const STELLAVERSE_IR_SITE_ID = PREVIEW_LINK_SITE.stellaverseIr;
     const BMS_IR_SELECTORS = {
       tagSectionPanel: "#box > div.panel.song-section-tags",
       songTitle: "#box > h1"
@@ -12314,6 +12381,18 @@
       hdbk: "#1f1d20",
       linkColor: "#f7f7f7",
       linkHoverColor: "#6c8ed4"
+    };
+    const STELLAVERSE_IR_THEME = {
+      dctx: "#333333",
+      dcbk: "#ffffff",
+      hdtx: "#eeeeff",
+      hdbk: "#222244",
+      linkColor: "#4444ee",
+      linkHoverColor: "red"
+    };
+    const STELLAVERSE_IR_SELECTORS = {
+      chartHeader: "#box > div.chart-header",
+      metaBox: "#box > div.meta-box"
     };
     const STELLAVERSE_THEMES = {
       dark: {
@@ -12596,6 +12675,9 @@
         case "stellabms.xyz":
           stellaverse();
           break;
+        case STELLAVERSE_IR_HOST:
+          stellaverseIr();
+          break;
         case BOKUTACHI_HOST:
           bokutachi();
           break;
@@ -12638,6 +12720,21 @@
     function isBokutachiChartUrl(url) {
       return Boolean(getBokutachiChartRoute(url));
     }
+    function getStellaverseIrChartMd5(url) {
+      try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.hostname !== STELLAVERSE_IR_HOST) {
+          return null;
+        }
+        const match = parsedUrl.pathname.match(STELLAVERSE_IR_CHART_PATH_PATTERN);
+        return match ? match[1].toLowerCase() : null;
+      } catch {
+        return null;
+      }
+    }
+    function isStellaverseIrChartUrl(url) {
+      return Boolean(getStellaverseIrChartMd5(url));
+    }
     function installLocationChangeHookOnce() {
       const hookFlag = "__bmsInfoExtenderLocationHookInstalled";
       if (window[hookFlag]) {
@@ -12661,41 +12758,81 @@
       };
       window.addEventListener("popstate", dispatchLocationChange);
     }
-    function watchSpaPage({ siteName, matchUrl, updatePage, isSettled }) {
+    function watchSpaPage({ siteName, matchUrl, updatePage, isSettled, cleanupPage }) {
       let lastUrl = location.href;
       let completedUrl = null;
       let observer = null;
       let isUpdating = false;
-      function markUpdated() {
-        completedUrl = location.href;
+      let pendingRouteUpdate = false;
+      let routeGeneration = 0;
+      let requestedRetryCount = 0;
+      const maxRequestedRetriesPerUrl = 2;
+      function createMarkUpdated(updateUrl, updateGeneration) {
+        return () => {
+          if (location.href !== updateUrl || routeGeneration !== updateGeneration) {
+            console.info(`${siteName}: URL変更後に完了通知されたため無視します`, updateUrl);
+            return;
+          }
+          completedUrl = updateUrl;
+        };
       }
       function shouldStopObserving() {
         return completedUrl === location.href || !matchUrl(location.href) || Boolean(isSettled?.());
       }
-      async function runUpdate() {
-        if (isUpdating || completedUrl === location.href || !matchUrl(location.href) || isSettled?.()) {
+      async function runUpdate({ queueIfUpdating = false } = {}) {
+        if (isUpdating) {
+          if (queueIfUpdating) {
+            pendingRouteUpdate = true;
+          }
+          return;
+        }
+        if (completedUrl === location.href || !matchUrl(location.href) || isSettled?.()) {
           if (shouldStopObserving()) {
             stopObserving();
           }
           return;
         }
         isUpdating = true;
+        const updateUrl = location.href;
+        const updateGeneration = routeGeneration;
+        let updateResult;
         try {
-          await updatePage({ markUpdated });
+          updateResult = await updatePage({ markUpdated: createMarkUpdated(updateUrl, updateGeneration) });
         } finally {
           isUpdating = false;
+          const shouldRunPendingRouteUpdate = pendingRouteUpdate;
+          pendingRouteUpdate = false;
+          const canUseUpdateResult = location.href === updateUrl && routeGeneration === updateGeneration;
+          const shouldRunRequestedRetry = canUseUpdateResult && updateResult?.retry === true && requestedRetryCount < maxRequestedRetriesPerUrl;
+          if (shouldRunRequestedRetry) {
+            requestedRetryCount += 1;
+          }
           if (shouldStopObserving()) {
             stopObserving();
+          } else if ((shouldRunPendingRouteUpdate || shouldRunRequestedRetry) && !document.hidden) {
+            void runUpdate();
           }
         }
+      }
+      function scheduleRunUpdate({ queueIfUpdating = false } = {}) {
+        if (document.hidden) {
+          return;
+        }
+        window.requestAnimationFrame(() => {
+          void runUpdate({ queueIfUpdating });
+        });
       }
       function startObserving() {
         if (observer || !matchUrl(location.href) || !document.body) {
           return;
         }
         console.log(`👁️ ${siteName}: MutationObserverによる監視を開始します`);
-        observer = new MutationObserver(async () => {
+        observer = new MutationObserver(async (mutationRecords) => {
           console.info("MutationObserverがDOMの変化を検知しました");
+          if (isOnlyBmsInfoOwnedMutation(mutationRecords)) {
+            console.info("拡張パネル自身のDOM変化のため更新をスキップします");
+            return;
+          }
           if (!document.hidden) {
             await runUpdate();
           }
@@ -12705,6 +12842,28 @@
         });
         observer.observe(document.body, { childList: true, subtree: true });
       }
+      function isOnlyBmsInfoOwnedMutation(mutationRecords) {
+        let hasOwnedMutationNode = false;
+        for (const mutationRecord of mutationRecords) {
+          const changedNodes = [
+            ...Array.from(mutationRecord.addedNodes),
+            ...Array.from(mutationRecord.removedNodes)
+          ];
+          if (changedNodes.length === 0) {
+            return false;
+          }
+          for (const node of changedNodes) {
+            if (!isBmsInfoOwnedMutationNode(node)) {
+              return false;
+            }
+            hasOwnedMutationNode = true;
+          }
+        }
+        return hasOwnedMutationNode;
+      }
+      function isBmsInfoOwnedMutationNode(node) {
+        return node instanceof Element && (node.id === "bmsdata-container" || node.id === PREVIEW_OVERLAY_HOST_ID);
+      }
       function stopObserving() {
         if (observer) {
           observer.disconnect();
@@ -12713,16 +12872,27 @@
         }
       }
       installLocationChangeHookOnce();
-      if (document.readyState === "complete") {
-        console.info("🔥 loadイベントは発火済でした");
+      function handleReadyEvent(eventName) {
+        console.info(`🔥 ${eventName}イベントが発火しました`);
         startObserving();
-        void runUpdate();
-      } else {
+        scheduleRunUpdate();
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+          handleReadyEvent("DOMContentLoaded");
+        }, { once: true });
         window.addEventListener("load", () => {
-          console.info("🔥 loadイベントが発火しました");
-          startObserving();
-          void runUpdate();
-        });
+          handleReadyEvent("load");
+        }, { once: true });
+      } else {
+        console.info("🔥 DOMContentLoadedイベントは発火済でした");
+        startObserving();
+        scheduleRunUpdate();
+        if (document.readyState !== "complete") {
+          window.addEventListener("load", () => {
+            handleReadyEvent("load");
+          }, { once: true });
+        }
       }
       document.addEventListener("visibilitychange", () => {
         console.info("🔥 Visibilitychangeイベントが発火しました");
@@ -12730,21 +12900,28 @@
           return;
         }
         startObserving();
-        void runUpdate();
+        scheduleRunUpdate();
       });
       window.addEventListener("locationchange", () => {
         if (location.href === lastUrl) {
           return;
         }
+        const previousUrl = lastUrl;
         lastUrl = location.href;
         completedUrl = null;
+        pendingRouteUpdate = false;
+        routeGeneration += 1;
+        requestedRetryCount = 0;
         console.log("🔄 URLが変化しました:", lastUrl);
+        try {
+          cleanupPage?.({ previousUrl, currentUrl: lastUrl });
+        } catch (error) {
+          console.warn(`${siteName}: SPA遷移時のcleanupに失敗しました`, error);
+        }
         resetActiveBmsPreviewRuntime();
         if (matchUrl(location.href)) {
           startObserving();
-          if (!document.hidden) {
-            void runUpdate();
-          }
+          scheduleRunUpdate({ queueIfUpdating: true });
         } else {
           stopObserving();
         }
@@ -12757,6 +12934,27 @@
       }
       activeBmsPreviewRuntime.destroy();
       activeBmsPreviewRuntime = null;
+    }
+    function destroyBmsDataContainer(container) {
+      if (!container) {
+        return;
+      }
+      const runtime = container.__bmsPreviewRuntime;
+      if (runtime) {
+        runtime.destroy();
+        if (activeBmsPreviewRuntime === runtime) {
+          activeBmsPreviewRuntime = null;
+        }
+        container.__bmsPreviewRuntime = null;
+      }
+      container.remove();
+    }
+    function removeBmsDataContainers(predicate) {
+      for (const container of document.querySelectorAll("#bmsdata-container")) {
+        if (predicate(container)) {
+          destroyBmsDataContainer(container);
+        }
+      }
     }
     function findAnchorByText(anchors, text) {
       let matchedAnchor = null;
@@ -12815,10 +13013,12 @@
           const pageContext = {
             identifiers: { md5: targetmd5, sha256: null, bmsid: null },
             insertion,
-            theme: BMS_IR_THEME
+            theme: BMS_IR_THEME,
+            currentSite: PREVIEW_LINK_SITE.bmsIr
           };
           const container = insertBmsDataTemplate(pageContext);
-          if (await insertBmsData(pageContext, container)) {
+          const insertResult = await insertBmsData(pageContext, container);
+          if (insertResult.ok) {
             console.info("✅ 外部データの取得とページの書き換えが成功しました");
           } else {
             console.error("❌ 外部データの取得とページの書き換えが失敗しました");
@@ -12873,10 +13073,12 @@
         const pageContext = {
           identifiers,
           insertion: { element: insertionElement, position: "beforebegin" },
-          theme: BOKUTACHI_THEME
+          theme: BOKUTACHI_THEME,
+          currentSite: PREVIEW_LINK_SITE.bokutachi
         };
         const container = insertBmsDataTemplate(pageContext);
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           insertionElement.remove();
           markUpdated();
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
@@ -12922,6 +13124,127 @@
         return BMS_IR_MD5_PATTERN.test(md5 ?? "") ? md5.toLowerCase() : null;
       } catch {
         return null;
+      }
+    }
+    function extractStellaverseIrMetaMd5(metaBox) {
+      for (const row of metaBox.querySelectorAll("tr")) {
+        const cells = Array.from(row.children);
+        for (let index = 0; index < cells.length - 1; index += 1) {
+          const label = cells[index].textContent.trim().replace(/\s+/g, "").toUpperCase();
+          if (label !== "MD5") {
+            continue;
+          }
+          const match = cells[index + 1].textContent.match(/[0-9a-fA-F]{32}/);
+          return match ? match[0].toLowerCase() : null;
+        }
+      }
+      return null;
+    }
+    function getStellaverseIrChartDomContext(targetmd5) {
+      const box = document.getElementById("box");
+      const chartHeader = document.querySelector(STELLAVERSE_IR_SELECTORS.chartHeader);
+      const metaBox = document.querySelector(STELLAVERSE_IR_SELECTORS.metaBox);
+      if (!box || !chartHeader || !metaBox || chartHeader.parentElement !== box || metaBox.parentElement !== box) {
+        return null;
+      }
+      const md5 = extractStellaverseIrMetaMd5(metaBox);
+      if (md5 !== targetmd5) {
+        return null;
+      }
+      return { box, chartHeader, metaBox, md5 };
+    }
+    function isStellaverseIrBmsDataContainer(container) {
+      const siteId = container.dataset?.bmsieSite;
+      return siteId === STELLAVERSE_IR_SITE_ID || !siteId;
+    }
+    function cleanupStellaverseIrBmsDataContainers() {
+      removeBmsDataContainers(isStellaverseIrBmsDataContainer);
+    }
+    function cleanupStellaverseIrBmsDataContainersExcept(pageKey) {
+      removeBmsDataContainers((container) => {
+        if (!isStellaverseIrBmsDataContainer(container)) {
+          return false;
+        }
+        return container.dataset?.bmsiePageKey !== pageKey;
+      });
+    }
+    function findStellaverseIrBmsDataContainer(pageKey) {
+      return Array.from(document.querySelectorAll("#bmsdata-container")).find((container) => {
+        return container.dataset?.bmsieSite === STELLAVERSE_IR_SITE_ID && container.dataset?.bmsiePageKey === pageKey;
+      }) ?? null;
+    }
+    function isCurrentStellaverseIrBmsDataContainer(container, pageKey, domContext) {
+      return container.isConnected && container.dataset?.bmsieSite === STELLAVERSE_IR_SITE_ID && container.dataset?.bmsiePageKey === pageKey && Boolean(container.__bmsPreviewRuntime) && domContext.chartHeader.nextElementSibling === container;
+    }
+    function waitForAnimationFrame() {
+      return new Promise((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+    }
+    async function waitForStellaverseIrPanelToSettle(container, pageKey) {
+      await waitForAnimationFrame();
+      await waitForAnimationFrame();
+      const domContext = getStellaverseIrChartDomContext(pageKey);
+      return Boolean(domContext && isCurrentStellaverseIrBmsDataContainer(container, pageKey, domContext));
+    }
+    async function stellaverseIr() {
+      console.info("STELLAVERSE IRの処理に入りました");
+      watchSpaPage({
+        siteName: "STELLAVERSE IR",
+        matchUrl: isStellaverseIrChartUrl,
+        updatePage,
+        cleanupPage: cleanupStellaverseIrBmsDataContainers
+      });
+      async function updatePage({ markUpdated }) {
+        const targetmd5 = getStellaverseIrChartMd5(location.href);
+        if (!targetmd5) {
+          return;
+        }
+        console.info("STELLAVERSE IR曲ページの書き換え処理に入りました");
+        cleanupStellaverseIrBmsDataContainersExcept(targetmd5);
+        const domContext = getStellaverseIrChartDomContext(targetmd5);
+        if (!domContext) {
+          console.info("❌ STELLAVERSE IRのページ書き換えはスキップされました。現在URLに対応する差し込み先がまだ見つかりませんでした");
+          return;
+        }
+        const existingContainer = findStellaverseIrBmsDataContainer(targetmd5);
+        if (existingContainer) {
+          if (isCurrentStellaverseIrBmsDataContainer(existingContainer, targetmd5, domContext)) {
+            console.info("既に現在ページ用のbmsdataが挿入済みのためスキップします");
+            markUpdated();
+            return;
+          }
+          destroyBmsDataContainer(existingContainer);
+        }
+        const pageContext = {
+          identifiers: { md5: targetmd5, sha256: null, bmsid: null },
+          insertion: { element: domContext.chartHeader, position: "afterend" },
+          theme: STELLAVERSE_IR_THEME,
+          currentSite: STELLAVERSE_IR_SITE_ID,
+          siteId: STELLAVERSE_IR_SITE_ID,
+          pageKey: targetmd5
+        };
+        const container = insertBmsDataTemplate(pageContext);
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
+          if (getStellaverseIrChartMd5(location.href) !== targetmd5) {
+            destroyBmsDataContainer(container);
+            return;
+          }
+          if (!await waitForStellaverseIrPanelToSettle(container, targetmd5)) {
+            console.info("STELLAVERSE IRのDOM差し替え後にbmsdataが残らなかったため、再試行を待ちます");
+            destroyBmsDataContainer(container);
+            return { retry: true };
+          }
+          console.info("✅ 外部データの取得とページの書き換えが成功しました");
+          markUpdated();
+        } else {
+          if (insertResult.reason === "detached") {
+            console.info("STELLAVERSE IRのデータ取得中にbmsdataがDOMから外されたため、再試行を待ちます");
+            return { retry: true };
+          }
+          console.error("❌ 外部データの取得とページの書き換えが失敗しました");
+        }
       }
     }
     async function stellaverse() {
@@ -13004,10 +13327,12 @@
           const pageContext = {
             identifiers: { md5: targetmd5, sha256: null, bmsid: null },
             insertion: { element: tableContainer, position: "beforeend" },
-            theme: isDarkMode ? STELLAVERSE_THEMES.dark : STELLAVERSE_THEMES.light
+            theme: isDarkMode ? STELLAVERSE_THEMES.dark : STELLAVERSE_THEMES.light,
+            currentSite: PREVIEW_LINK_SITE.stellaverse
           };
           const container = insertBmsDataTemplate(pageContext);
-          if (await insertBmsData(pageContext, container)) {
+          const insertResult = await insertBmsData(pageContext, container);
+          if (insertResult.ok) {
             console.info("✅ 外部データの取得とページの書き換えが成功しました");
             const rowsToRemoveAfterSuccess = STELLAVERSE_INDEXES.removeRowsAfterSuccess.map((index) => tableRows[index]).filter(Boolean);
             rowsToRemoveAfterSuccess.forEach((row) => {
@@ -13046,10 +13371,12 @@
           const pageContext = {
             identifiers: { md5: null, sha256: targetsha256, bmsid: null },
             insertion: { element: htmlTargetElement, position: htmlTargetDest },
-            theme: { dctx: "#1A202C", dcbk: "#ffffff", hdtx: "#000000DE", hdbk: "#f1f1f1" }
+            theme: { dctx: "#1A202C", dcbk: "#ffffff", hdtx: "#000000DE", hdbk: "#f1f1f1" },
+            currentSite: PREVIEW_LINK_SITE.minir
           };
           const container = insertBmsDataTemplate(pageContext);
-          if (await insertBmsData(pageContext, container)) {
+          const insertResult = await insertBmsData(pageContext, container);
+          if (insertResult.ok) {
             console.info("✅ 外部データの取得とページの書き換えが成功しました");
             markUpdated();
           } else {
@@ -13090,10 +13417,12 @@
           const pageContext = {
             identifiers: { md5: null, sha256: targetsha256, bmsid: null },
             insertion: { element: htmlTargetElement, position: htmlTargetDest },
-            theme: MOCHA_THEME
+            theme: MOCHA_THEME,
+            currentSite: PREVIEW_LINK_SITE.mocha
           };
           const container = insertBmsDataTemplate(pageContext);
-          if (await insertBmsData(pageContext, container)) {
+          const insertResult = await insertBmsData(pageContext, container);
+          if (insertResult.ok) {
             if (songInfoTable) {
               const rowsToRemove = [
                 songInfoRows[MOCHA_ROW_INDEXES.otherIr],
@@ -13164,19 +13493,29 @@
       }
     }
     function insertBmsDataTemplate(pageContext) {
-      return insertBmsDataContainer({
+      const container = insertBmsDataContainer({
         documentRef: document,
         insertion: pageContext.insertion,
         theme: pageContext.theme
       });
+      if (pageContext.siteId) {
+        container.dataset.bmsieSite = pageContext.siteId;
+      }
+      if (pageContext.pageKey) {
+        container.dataset.bmsiePageKey = pageContext.pageKey;
+      }
+      return container;
     }
     async function insertBmsData(pageContext, container) {
       const normalizedRecord = await fetchBmsInfoRecordByIdentifiers(pageContext.identifiers);
       if (!normalizedRecord) {
-        container.remove();
-        return false;
+        destroyBmsDataContainer(container);
+        return { ok: false, reason: "not-found" };
       }
-      renderBmsData(container, normalizedRecord);
+      if (container.isConnected === false) {
+        return { ok: false, reason: "detached" };
+      }
+      renderBmsData(container, normalizedRecord, { currentSite: pageContext.currentSite });
       if (container.__bmsPreviewRuntime) {
         container.__bmsPreviewRuntime.destroy();
       }
@@ -13194,6 +13533,7 @@
       container.__bmsPreviewRuntime = createBmsInfoPreview({
         container,
         documentRef: document,
+        currentSite: pageContext.currentSite,
         loadParsedScore: async (record) => {
           const loaderContext = await ensureScoreLoaderContext();
           const parsedResult = await loaderContext.loader.loadParsedScore(record.sha256.toLowerCase());
@@ -13216,7 +13556,7 @@
       if (normalizedRecord.sha256) {
         void container.__bmsPreviewRuntime.prefetch();
       }
-      return true;
+      return { ok: true, reason: "success" };
     }
     async function checkBmsSearchPatternExists2(sha256) {
       return checkBmsSearchPatternExists(sha256);

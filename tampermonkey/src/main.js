@@ -14,7 +14,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
   const SCORE_BASE_URL = "https://bms-info-extender.netlify.app/score";
   const SCORE_R2_BASE_URL = "https://bms.howan.jp/score";
   const BMSSEARCH_PATTERN_PAGE_BASE_URL = "https://bmssearch.net/patterns";
-  const SCRIPT_VERSION_FALLBACK = "2.3.17";
+  const SCRIPT_VERSION_FALLBACK = "2.3.18";
   const userscriptFetch = createUserscriptFetch();
   PreviewRuntime.setPreviewRuntimeFetch(userscriptFetch);
   const SKIP_VERSION_NOTIFICATION_FROM = "2.3.0";
@@ -339,6 +339,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
   const BMS_IR_MD5_PATTERN = /^[0-9a-fA-F]{32}$/;
   const BOKUTACHI_HOST = "boku.tachi.ac";
   const BOKUTACHI_CHART_PATH_PATTERN = /^\/games\/([^/]+)\/charts\/([^/]+)\/?$/;
+  const STELLAVERSE_IR_HOST = "ir.stellabms.xyz";
+  const STELLAVERSE_IR_CHART_PATH_PATTERN = /^\/charts\/([0-9a-fA-F]{32})\/?$/;
+  const STELLAVERSE_IR_SITE_ID = PreviewRuntime.PREVIEW_LINK_SITE.stellaverseIr;
   const BMS_IR_SELECTORS = {
     tagSectionPanel: "#box > div.panel.song-section-tags",
     songTitle: "#box > h1"
@@ -358,6 +361,18 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     hdbk: "#1f1d20",
     linkColor: "#f7f7f7",
     linkHoverColor: "#6c8ed4"
+  };
+  const STELLAVERSE_IR_THEME = {
+    dctx: "#333333",
+    dcbk: "#ffffff",
+    hdtx: "#eeeeff",
+    hdbk: "#222244",
+    linkColor: "#4444ee",
+    linkHoverColor: "red"
+  };
+  const STELLAVERSE_IR_SELECTORS = {
+    chartHeader: "#box > div.chart-header",
+    metaBox: "#box > div.meta-box"
   };
   const STELLAVERSE_THEMES = {
     dark: {
@@ -463,6 +478,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    * @property {PageIdentifiers} identifiers
    * @property {PageInsertion} insertion
    * @property {PageTheme} theme
+   * @property {string=} currentSite
+   * @property {string=} siteId
+   * @property {string=} pageKey
    */
 
   /**
@@ -472,12 +490,26 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    */
 
   /**
+   * サイト別 updatePage の実行結果。
+   * @typedef {Object} UpdatePageResult
+   * @property {boolean=} retry
+   */
+
+  /**
+   * 拡張パネル描画パイプラインの実行結果。
+   * @typedef {Object} InsertBmsDataResult
+   * @property {boolean} ok
+   * @property {"success"|"not-found"|"detached"} reason
+   */
+
+  /**
    * SPA 監視の設定。
    * @typedef {Object} WatchSpaPageConfig
    * @property {string} siteName
    * @property {(url: string) => boolean} matchUrl
-   * @property {(helpers: UpdatePageHelpers) => Promise<void>} updatePage
+   * @property {(helpers: UpdatePageHelpers) => Promise<void|UpdatePageResult>} updatePage
    * @property {(() => boolean)=} isSettled
+   * @property {((details: { previousUrl: string, currentUrl: string }) => void)=} cleanupPage
    */
 
   /**
@@ -780,6 +812,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       case 'stellabms.xyz':
         stellaverse();
         break;
+      case STELLAVERSE_IR_HOST:
+        stellaverseIr();
+        break;
       case BOKUTACHI_HOST:
         bokutachi();
         break;
@@ -826,6 +861,23 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     return Boolean(getBokutachiChartRoute(url));
   }
 
+  function getStellaverseIrChartMd5(url) {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.hostname !== STELLAVERSE_IR_HOST) {
+        return null;
+      }
+      const match = parsedUrl.pathname.match(STELLAVERSE_IR_CHART_PATH_PATTERN);
+      return match ? match[1].toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function isStellaverseIrChartUrl(url) {
+    return Boolean(getStellaverseIrChartMd5(url));
+  }
+
   /**
    * history API を一度だけパッチし、SPA 遷移時に locationchange を発火させる。
    * @returns {void}
@@ -863,23 +915,39 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    * @param {WatchSpaPageConfig} config
    * @returns {void}
    */
-  function watchSpaPage({ siteName, matchUrl, updatePage, isSettled }) {
+  function watchSpaPage({ siteName, matchUrl, updatePage, isSettled, cleanupPage }) {
     let lastUrl = location.href;
     let completedUrl = null;
     let observer = null;
     let isUpdating = false;
+    let pendingRouteUpdate = false;
+    let routeGeneration = 0;
+    let requestedRetryCount = 0;
+    const maxRequestedRetriesPerUrl = 2;
 
     // 同じ URL での再実行を止めるため、サイト側処理が完了した時点を記録する。
-    function markUpdated() {
-      completedUrl = location.href;
+    function createMarkUpdated(updateUrl, updateGeneration) {
+      return () => {
+        if (location.href !== updateUrl || routeGeneration !== updateGeneration) {
+          console.info(`${siteName}: URL変更後に完了通知されたため無視します`, updateUrl);
+          return;
+        }
+        completedUrl = updateUrl;
+      };
     }
 
     function shouldStopObserving() {
       return completedUrl === location.href || !matchUrl(location.href) || Boolean(isSettled?.());
     }
 
-    async function runUpdate() {
-      if (isUpdating || completedUrl === location.href || !matchUrl(location.href) || isSettled?.()) {
+    async function runUpdate({ queueIfUpdating = false } = {}) {
+      if (isUpdating) {
+        if (queueIfUpdating) {
+          pendingRouteUpdate = true;
+        }
+        return;
+      }
+      if (completedUrl === location.href || !matchUrl(location.href) || isSettled?.()) {
         if (shouldStopObserving()) {
           stopObserving();
         }
@@ -887,14 +955,37 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       }
 
       isUpdating = true;
+      const updateUrl = location.href;
+      const updateGeneration = routeGeneration;
+      let updateResult;
       try {
-        await updatePage({ markUpdated });
+        updateResult = await updatePage({ markUpdated: createMarkUpdated(updateUrl, updateGeneration) });
       } finally {
         isUpdating = false;
+        const shouldRunPendingRouteUpdate = pendingRouteUpdate;
+        pendingRouteUpdate = false;
+        const canUseUpdateResult = location.href === updateUrl && routeGeneration === updateGeneration;
+        const shouldRunRequestedRetry = canUseUpdateResult
+          && updateResult?.retry === true
+          && requestedRetryCount < maxRequestedRetriesPerUrl;
+        if (shouldRunRequestedRetry) {
+          requestedRetryCount += 1;
+        }
         if (shouldStopObserving()) {
           stopObserving();
+        } else if ((shouldRunPendingRouteUpdate || shouldRunRequestedRetry) && !document.hidden) {
+          void runUpdate();
         }
       }
+    }
+
+    function scheduleRunUpdate({ queueIfUpdating = false } = {}) {
+      if (document.hidden) {
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        void runUpdate({ queueIfUpdating });
+      });
     }
 
     function startObserving() {
@@ -904,8 +995,12 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
 
       console.log(`👁️ ${siteName}: MutationObserverによる監視を開始します`);
 
-      observer = new MutationObserver(async () => {
+      observer = new MutationObserver(async (mutationRecords) => {
         console.info("MutationObserverがDOMの変化を検知しました");
+        if (isOnlyBmsInfoOwnedMutation(mutationRecords)) {
+          console.info("拡張パネル自身のDOM変化のため更新をスキップします");
+          return;
+        }
         if (!document.hidden) {
           await runUpdate();
         }
@@ -914,6 +1009,34 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function isOnlyBmsInfoOwnedMutation(mutationRecords) {
+      let hasOwnedMutationNode = false;
+      for (const mutationRecord of mutationRecords) {
+        const changedNodes = [
+          ...Array.from(mutationRecord.addedNodes),
+          ...Array.from(mutationRecord.removedNodes)
+        ];
+        if (changedNodes.length === 0) {
+          return false;
+        }
+        for (const node of changedNodes) {
+          if (!isBmsInfoOwnedMutationNode(node)) {
+            return false;
+          }
+          hasOwnedMutationNode = true;
+        }
+      }
+      return hasOwnedMutationNode;
+    }
+
+    function isBmsInfoOwnedMutationNode(node) {
+      return node instanceof Element
+        && (
+          node.id === "bmsdata-container"
+          || node.id === PreviewRuntime.PREVIEW_OVERLAY_HOST_ID
+        );
     }
 
     function stopObserving() {
@@ -926,16 +1049,28 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
 
     installLocationChangeHookOnce();
 
-    if (document.readyState === "complete") {
-      console.info("🔥 loadイベントは発火済でした");
+    function handleReadyEvent(eventName) {
+      console.info(`🔥 ${eventName}イベントが発火しました`);
       startObserving();
-      void runUpdate();
-    } else {
+      scheduleRunUpdate();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener('DOMContentLoaded', () => {
+        handleReadyEvent("DOMContentLoaded");
+      }, { once: true });
       window.addEventListener('load', () => {
-        console.info("🔥 loadイベントが発火しました");
-        startObserving();
-        void runUpdate();
-      });
+        handleReadyEvent("load");
+      }, { once: true });
+    } else {
+      console.info("🔥 DOMContentLoadedイベントは発火済でした");
+      startObserving();
+      scheduleRunUpdate();
+      if (document.readyState !== "complete") {
+        window.addEventListener('load', () => {
+          handleReadyEvent("load");
+        }, { once: true });
+      }
     }
 
     document.addEventListener("visibilitychange", () => {
@@ -944,7 +1079,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         return;
       }
       startObserving();
-      void runUpdate();
+      scheduleRunUpdate();
     });
 
     window.addEventListener("locationchange", () => {
@@ -952,17 +1087,24 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         return;
       }
 
+      const previousUrl = lastUrl;
       lastUrl = location.href;
       completedUrl = null;
+      pendingRouteUpdate = false;
+      routeGeneration += 1;
+      requestedRetryCount = 0;
       console.log("🔄 URLが変化しました:", lastUrl);
+      try {
+        cleanupPage?.({ previousUrl, currentUrl: lastUrl });
+      } catch (error) {
+        console.warn(`${siteName}: SPA遷移時のcleanupに失敗しました`, error);
+      }
       // SPA 遷移で DOM が差し替わる前に、前ページの preview runtime を破棄する。
       resetActiveBmsPreviewRuntime();
 
       if (matchUrl(location.href)) {
         startObserving();
-        if (!document.hidden) {
-          void runUpdate();
-        }
+        scheduleRunUpdate({ queueIfUpdating: true });
       } else {
         stopObserving();
       }
@@ -977,6 +1119,39 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     }
     activeBmsPreviewRuntime.destroy();
     activeBmsPreviewRuntime = null;
+  }
+
+  /**
+   * 挿入済みの拡張パネルと、それに紐づく preview runtime を破棄する。
+   * @param {Element|null|undefined} container
+   * @returns {void}
+   */
+  function destroyBmsDataContainer(container) {
+    if (!container) {
+      return;
+    }
+    const runtime = container.__bmsPreviewRuntime;
+    if (runtime) {
+      runtime.destroy();
+      if (activeBmsPreviewRuntime === runtime) {
+        activeBmsPreviewRuntime = null;
+      }
+      container.__bmsPreviewRuntime = null;
+    }
+    container.remove();
+  }
+
+  /**
+   * 条件に合う拡張パネルをすべて削除する。
+   * @param {(container: Element) => boolean} predicate
+   * @returns {void}
+   */
+  function removeBmsDataContainers(predicate) {
+    for (const container of document.querySelectorAll("#bmsdata-container")) {
+      if (predicate(container)) {
+        destroyBmsDataContainer(container);
+      }
+    }
   }
 
   /**
@@ -1076,12 +1251,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: targetmd5, sha256: null, bmsid: null },
           insertion,
-          theme: BMS_IR_THEME
+          theme: BMS_IR_THEME,
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.bmsIr
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
         } else {
           console.error("❌ 外部データの取得とページの書き換えが失敗しました");
@@ -1152,10 +1329,12 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       const pageContext = {
         identifiers,
         insertion: { element: insertionElement, position: "beforebegin" },
-        theme: BOKUTACHI_THEME
+        theme: BOKUTACHI_THEME,
+        currentSite: PreviewRuntime.PREVIEW_LINK_SITE.bokutachi
       };
       const container = insertBmsDataTemplate(pageContext);
-      if (await insertBmsData(pageContext, container)) {
+      const insertResult = await insertBmsData(pageContext, container);
+      if (insertResult.ok) {
         insertionElement.remove();
         markUpdated();
         console.info("✅ 外部データの取得とページの書き換えが成功しました");
@@ -1206,6 +1385,206 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       return BMS_IR_MD5_PATTERN.test(md5 ?? "") ? md5.toLowerCase() : null;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * STELLAVERSE IR の meta-box から MD5 行の値を取り出す。
+   * @param {Element} metaBox
+   * @returns {string|null}
+   */
+  function extractStellaverseIrMetaMd5(metaBox) {
+    for (const row of metaBox.querySelectorAll("tr")) {
+      const cells = Array.from(row.children);
+      for (let index = 0; index < cells.length - 1; index += 1) {
+        const label = cells[index].textContent.trim().replace(/\s+/g, "").toUpperCase();
+        if (label !== "MD5") {
+          continue;
+        }
+        const match = cells[index + 1].textContent.match(/[0-9a-fA-F]{32}/);
+        return match ? match[0].toLowerCase() : null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 現在URLと同じ曲を表示している STELLAVERSE IR のDOM参照を取得する。
+   * @param {string} targetmd5
+   * @returns {{ box: Element, chartHeader: Element, metaBox: Element, md5: string }|null}
+   */
+  function getStellaverseIrChartDomContext(targetmd5) {
+    const box = document.getElementById("box");
+    const chartHeader = document.querySelector(STELLAVERSE_IR_SELECTORS.chartHeader);
+    const metaBox = document.querySelector(STELLAVERSE_IR_SELECTORS.metaBox);
+    if (!box || !chartHeader || !metaBox || chartHeader.parentElement !== box || metaBox.parentElement !== box) {
+      return null;
+    }
+
+    const md5 = extractStellaverseIrMetaMd5(metaBox);
+    if (md5 !== targetmd5) {
+      return null;
+    }
+
+    return { box, chartHeader, metaBox, md5 };
+  }
+
+  /**
+   * STELLAVERSE IR で挿入した拡張パネルかどうかを判定する。
+   * siteId がないものは、旧版が挿入した同一サイト上のパネルとして扱う。
+   * @param {Element} container
+   * @returns {boolean}
+   */
+  function isStellaverseIrBmsDataContainer(container) {
+    const siteId = container.dataset?.bmsieSite;
+    return siteId === STELLAVERSE_IR_SITE_ID || !siteId;
+  }
+
+  /**
+   * STELLAVERSE IR の拡張パネルをすべて削除する。
+   * @returns {void}
+   */
+  function cleanupStellaverseIrBmsDataContainers() {
+    removeBmsDataContainers(isStellaverseIrBmsDataContainer);
+  }
+
+  /**
+   * 現在ページ以外の STELLAVERSE IR 拡張パネルを削除する。
+   * @param {string} pageKey
+   * @returns {void}
+   */
+  function cleanupStellaverseIrBmsDataContainersExcept(pageKey) {
+    removeBmsDataContainers((container) => {
+      if (!isStellaverseIrBmsDataContainer(container)) {
+        return false;
+      }
+      return container.dataset?.bmsiePageKey !== pageKey;
+    });
+  }
+
+  /**
+   * STELLAVERSE IR の現在ページ用パネルを取得する。
+   * @param {string} pageKey
+   * @returns {Element|null}
+   */
+  function findStellaverseIrBmsDataContainer(pageKey) {
+    return Array.from(document.querySelectorAll("#bmsdata-container")).find((container) => {
+      return container.dataset?.bmsieSite === STELLAVERSE_IR_SITE_ID
+        && container.dataset?.bmsiePageKey === pageKey;
+    }) ?? null;
+  }
+
+  /**
+   * STELLAVERSE IR の拡張パネルが現在の chart-header 直後に残っているか判定する。
+   * @param {Element} container
+   * @param {string} pageKey
+   * @param {{ chartHeader: Element }} domContext
+   * @returns {boolean}
+   */
+  function isCurrentStellaverseIrBmsDataContainer(container, pageKey, domContext) {
+    return container.isConnected
+      && container.dataset?.bmsieSite === STELLAVERSE_IR_SITE_ID
+      && container.dataset?.bmsiePageKey === pageKey
+      && Boolean(container.__bmsPreviewRuntime)
+      && domContext.chartHeader.nextElementSibling === container;
+  }
+
+  /**
+   * 次の animation frame を待つ。
+   * @returns {Promise<void>}
+   */
+  function waitForAnimationFrame() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  /**
+   * 挿入直後のSPA差し替えが落ち着いても、パネルが現在ページに残っているか確認する。
+   * @param {Element} container
+   * @param {string} pageKey
+   * @returns {Promise<boolean>}
+   */
+  async function waitForStellaverseIrPanelToSettle(container, pageKey) {
+    await waitForAnimationFrame();
+    await waitForAnimationFrame();
+    const domContext = getStellaverseIrChartDomContext(pageKey);
+    return Boolean(domContext && isCurrentStellaverseIrBmsDataContainer(container, pageKey, domContext));
+  }
+
+  // ====================================================================================================
+  // STELLAVERSE IR
+  //   MD5 を含む曲ページに共通の拡張パネルを追加する
+  // ====================================================================================================
+  /**
+   * STELLAVERSE IR 向けの拡張処理を初期化する。
+   * @returns {Promise<void>}
+   */
+  async function stellaverseIr() {
+    console.info("STELLAVERSE IRの処理に入りました");
+    watchSpaPage({
+      siteName: "STELLAVERSE IR",
+      matchUrl: isStellaverseIrChartUrl,
+      updatePage,
+      cleanupPage: cleanupStellaverseIrBmsDataContainers
+    });
+
+    // ==================================================================================================
+    // 曲ページの書き換え処理
+    async function updatePage({ markUpdated }) {
+      const targetmd5 = getStellaverseIrChartMd5(location.href);
+      if (!targetmd5) {
+        return;
+      }
+      console.info("STELLAVERSE IR曲ページの書き換え処理に入りました");
+
+      cleanupStellaverseIrBmsDataContainersExcept(targetmd5);
+
+      const domContext = getStellaverseIrChartDomContext(targetmd5);
+      if (!domContext) {
+        console.info("❌ STELLAVERSE IRのページ書き換えはスキップされました。現在URLに対応する差し込み先がまだ見つかりませんでした");
+        return;
+      }
+
+      const existingContainer = findStellaverseIrBmsDataContainer(targetmd5);
+      if (existingContainer) {
+        if (isCurrentStellaverseIrBmsDataContainer(existingContainer, targetmd5, domContext)) {
+          console.info("既に現在ページ用のbmsdataが挿入済みのためスキップします");
+          markUpdated();
+          return;
+        }
+        destroyBmsDataContainer(existingContainer);
+      }
+
+      const pageContext = {
+        identifiers: { md5: targetmd5, sha256: null, bmsid: null },
+        insertion: { element: domContext.chartHeader, position: "afterend" },
+        theme: STELLAVERSE_IR_THEME,
+        currentSite: STELLAVERSE_IR_SITE_ID,
+        siteId: STELLAVERSE_IR_SITE_ID,
+        pageKey: targetmd5
+      };
+      const container = insertBmsDataTemplate(pageContext);
+      const insertResult = await insertBmsData(pageContext, container);
+      if (insertResult.ok) {
+        if (getStellaverseIrChartMd5(location.href) !== targetmd5) {
+          destroyBmsDataContainer(container);
+          return;
+        }
+        if (!await waitForStellaverseIrPanelToSettle(container, targetmd5)) {
+          console.info("STELLAVERSE IRのDOM差し替え後にbmsdataが残らなかったため、再試行を待ちます");
+          destroyBmsDataContainer(container);
+          return { retry: true };
+        }
+        console.info("✅ 外部データの取得とページの書き換えが成功しました");
+        markUpdated();
+      } else {
+        if (insertResult.reason === "detached") {
+          console.info("STELLAVERSE IRのデータ取得中にbmsdataがDOMから外されたため、再試行を待ちます");
+          return { retry: true };
+        }
+        console.error("❌ 外部データの取得とページの書き換えが失敗しました");
+      }
     }
   }
 
@@ -1310,12 +1689,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: targetmd5, sha256: null, bmsid: null },
           insertion: { element: tableContainer, position: "beforeend" },
-          theme: isDarkMode ? STELLAVERSE_THEMES.dark : STELLAVERSE_THEMES.light
+          theme: isDarkMode ? STELLAVERSE_THEMES.dark : STELLAVERSE_THEMES.light,
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.stellaverse
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
           // STELLAVERSE 側と完全に重複する行だけを消し、補助情報のある行は残す。
           const rowsToRemoveAfterSuccess = STELLAVERSE_INDEXES.removeRowsAfterSuccess
@@ -1373,12 +1754,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: null, sha256: targetsha256, bmsid: null },
           insertion: { element: htmlTargetElement, position: htmlTargetDest },
-          theme: { dctx: "#1A202C", dcbk: "#ffffff", hdtx: "#000000DE", hdbk: "#f1f1f1" }
+          theme: { dctx: "#1A202C", dcbk: "#ffffff", hdtx: "#000000DE", hdbk: "#f1f1f1" },
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.minir
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
           markUpdated();
         } else {
@@ -1440,12 +1823,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: null, sha256: targetsha256, bmsid: null },
           insertion: { element: htmlTargetElement, position: htmlTargetDest },
-          theme: MOCHA_THEME
+          theme: MOCHA_THEME,
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.mocha
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           // 最後まで置換がうまく行った場合
           if (songInfoTable) {
             // Mocha 側と完全に重複する行だけを落とし、残す行の並びは変えない。
@@ -1537,28 +1922,38 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    * @returns {HTMLElement}
    */
   function insertBmsDataTemplate(pageContext) {
-    return PreviewRuntime.insertBmsDataContainer({
+    const container = PreviewRuntime.insertBmsDataContainer({
       documentRef: document,
       insertion: pageContext.insertion,
       theme: pageContext.theme,
     });
+    if (pageContext.siteId) {
+      container.dataset.bmsieSite = pageContext.siteId;
+    }
+    if (pageContext.pageKey) {
+      container.dataset.bmsiePageKey = pageContext.pageKey;
+    }
+    return container;
   }
 
   /**
    * 外部データ取得から描画、グラフ描画までのパイプラインを実行する。
    * @param {PageContext} pageContext
    * @param {HTMLElement} container
-   * @returns {Promise<boolean>}
+   * @returns {Promise<InsertBmsDataResult>}
    */
   async function insertBmsData(pageContext, container) {
     // 取得失敗時は差し込んだ空パネルを片付けて終了する。
     const normalizedRecord = await PreviewRuntime.fetchBmsInfoRecordByIdentifiers(pageContext.identifiers);
     if (!normalizedRecord) {
-      container.remove();
-      return false;
+      destroyBmsDataContainer(container);
+      return { ok: false, reason: "not-found" };
+    }
+    if (container.isConnected === false) {
+      return { ok: false, reason: "detached" };
     }
 
-    PreviewRuntime.renderBmsData(container, normalizedRecord);
+    PreviewRuntime.renderBmsData(container, normalizedRecord, { currentSite: pageContext.currentSite });
     if (container.__bmsPreviewRuntime) {
       container.__bmsPreviewRuntime.destroy();
     }
@@ -1579,6 +1974,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     container.__bmsPreviewRuntime = PreviewRuntime.createBmsInfoPreview({
       container,
       documentRef: document,
+      currentSite: pageContext.currentSite,
       loadParsedScore: async (record) => {
         const loaderContext = await ensureScoreLoaderContext();
         const parsedResult = await loaderContext.loader.loadParsedScore(record.sha256.toLowerCase());
@@ -1602,7 +1998,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       void container.__bmsPreviewRuntime.prefetch();
     }
 
-    return true;
+    return { ok: true, reason: "success" };
   }
 
   /**
