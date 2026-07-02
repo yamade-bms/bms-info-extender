@@ -12040,7 +12040,7 @@
     const SCRIPT_VERSION_FALLBACK = "2.3.18";
     const userscriptFetch = createUserscriptFetch();
     setPreviewRuntimeFetch(userscriptFetch);
-    const SKIP_VERSION_NOTIFICATION_FROM = "2.3.0";
+    const SKIP_VERSION_NOTIFICATION_FROM = "2.3.18";
     const VERSION_NOTIFICATION_STORAGE_KEYS = {
       lastNotifiedVersion: "bms-info-extender.versionNotification.lastNotifiedVersion",
       notificationLanguage: "bms-info-extender.versionNotification.language"
@@ -12164,7 +12164,131 @@
       cursor: pointer;
     }
   `;
-    const RELEASE_NOTES_JA = `# v2.3.3 (通知スキップ)
+    const RELEASE_NOTES_JA = `# v2.3.18
+
+## STELLAVERSE IR曲ページへの対応
+- STELLAVERSE IRの曲ページにメタデータ、ノーツ分布/BPM推移グラフ、譜面ビューアを表示するようにしました
+- STELLAVERSE IRはSPAのため、URL変更時に拡張パネルを明示的にクリーンアップし、現在のURLとページ内MD5が一致する場合だけ挿入するようにしました
+- 初回表示時のhydrationで拡張パネルが消される場合に、同一ページ内で限定的に再試行するようにしました
+- グラフ下に余分な空白が出にくいよう、グラフ領域のサイズ処理を調整しました
+
+## LINKの整理
+- LINKにSTELLAVERSE IRを追加しました
+- LINKの並び順を BMS-IR, STELLAVERSE IR, MinIR, Mocha, Bokutachi, Viewer, EZ2PT, BMS SEARCH, STELLAVERSE に整理しました
+- 表示中のサイト自身へのLINKは非表示にするようにしました
+
+---
+
+# v2.3.17 (通知スキップ)
+
+## BMS-IR曲ページでの拡張パネル挿入位置を調整
+- タグパネルの手前へ拡張パネルを挿入するようにしました
+- タグパネルが見つからない場合は、曲名の手前へ挿入するフォールバックを追加しました
+
+---
+
+# v2.3.16 (通知スキップ)
+
+## Bokutachi譜面ページへの対応
+- Bokutachi譜面ページにメタデータ、グラフ、譜面ビューアを表示するようにしました
+- Bokutachiページの対象URLを調整しました
+- Shadow DOM内UIの基準フォントサイズを明示しました
+
+---
+
+# v2.3.15 (通知スキップ)
+
+## Bokutachi LINKの解決方法を変更
+- Bokutachi LINKをTachi hash resolve APIで解決するようにしました
+- STELLAVERSEの既存リンクを流用する処理を廃止しました
+
+---
+
+# v2.3.14 (通知スキップ)
+
+## メタデータパネルをShadow DOMへ分離
+- 元サイトのCSS影響を受けにくくするため、メタデータテーブルをShadow DOM内へ分離しました
+
+---
+
+# v2.3.13 (通知スキップ)
+
+## BMS-IR名称とキャッシュ処理を調整
+- 表示文言をBMS-IRへ修正しました
+- メタデータ取得時の暫定キャッシュバスターを廃止しました
+
+---
+
+# v2.3.12 (通知スキップ)
+
+## LR2ALT公式ドメインのwww有無に両対応
+- LR2ALT公式ドメインのwwwあり/なしの両方に対応しました
+
+---
+
+# v2.3.11 (通知スキップ)
+
+## LR2ALT公式ドメインを調整
+- LR2ALT公式ドメインのURLをwwwなしへ変更しました
+
+---
+
+# v2.3.10 (通知スキップ)
+
+## LR2ALT公式ドメインと外部取得に対応
+- LR2ALT公式ドメインに対応しました
+- IP直指定対応を廃止しました
+- 外部取得のCSP対応を調整しました
+
+---
+
+# v2.3.9 (通知スキップ)
+
+## LR2IR Alternativeに対応
+- LR2IR Alternativeに対応しました
+- hosts編集とIP直指定の双方に対応しました
+
+---
+
+# v2.3.8 (通知スキップ)
+
+## STELLAVERSEでのMD5抽出を調整
+- STELLAVERSEではLR2IRリンクではなく、譜面ビューアリンクからMD5を抽出するようにしました
+
+---
+
+# v2.3.7 (通知スキップ)
+
+## BPM/TOTAL表示を改善
+- BPMのMIN/MAXで小数に対応しました
+- TOTALとBPMは小数点以下3桁以降を省略し、ツールチップに全量を表示するようにしました
+- TOTAL未定義時はundefined表示とし、ツールチップにLR2/beatoraja相当の計算値を表示するようにしました
+
+---
+
+# v2.3.6 (通知スキップ)
+
+## STELLAVERSEのセレクターを修正
+- STELLAVERSE側のページ構造に合わせてセレクターを修正しました
+
+---
+
+# v2.3.5 (通知スキップ)
+
+## EZ2PATTERNリンクを追加
+- LINKにEZ2PATTERNへのリンクを追加しました
+
+---
+
+# v2.3.4 (通知スキップ)
+
+## STELLAVERSEのDOM操作を調整
+- STELLAVERSEでのDOM操作を微調整しました
+- 投票ページでIRリンク行ではなく曲コメント行が削除される問題を修正しました
+
+---
+
+# v2.3.3 (通知スキップ)
 
 ## 24keys/48keys対応とそれに伴うパーサーの更新
 - パーサーを更新しました(v0.6.5→v0.6.6)
@@ -12246,7 +12370,131 @@
 
 ## 従来からの挙動について補足
 - 譜面ビューアはドラッグやホイールでも動かすことができます`;
-    const RELEASE_NOTES_EN = `# v2.3.3 (notification skipped)
+    const RELEASE_NOTES_EN = `# v2.3.18
+
+## Added support for STELLAVERSE IR chart pages
+- STELLAVERSE IR chart pages now show metadata, the notes density/BPM graph, and the score viewer
+- Because STELLAVERSE IR is an SPA, the userscript now explicitly cleans up the extension panel on route changes and inserts it only when the URL MD5 matches the MD5 shown in the page metadata
+- If the initial hydration removes the extension panel, the userscript now performs a limited retry on the same page
+- Adjusted graph sizing so extra blank space is less likely to appear below the graph
+
+## Reorganized LINK entries
+- Added a STELLAVERSE IR link
+- Reordered LINK entries to BMS-IR, STELLAVERSE IR, MinIR, Mocha, Bokutachi, Viewer, EZ2PT, BMS SEARCH, STELLAVERSE
+- The link for the current site is now hidden while viewing that site
+
+---
+
+# v2.3.17 (notification skipped)
+
+## Adjusted where the extension panel is inserted on BMS-IR song pages
+- The extension panel is now inserted before the tags panel
+- Added a fallback that inserts the panel before the song title when the tags panel cannot be found
+
+---
+
+# v2.3.16 (notification skipped)
+
+## Added support for Bokutachi chart pages
+- Bokutachi chart pages now show metadata, the graph, and the score viewer
+- Adjusted the target URL matching for Bokutachi pages
+- Explicitly set the base font size for UI inside Shadow DOM
+
+---
+
+# v2.3.15 (notification skipped)
+
+## Changed how Bokutachi links are resolved
+- Bokutachi links are now resolved through the Tachi hash resolve API
+- Removed the previous behavior that reused existing STELLAVERSE links
+
+---
+
+# v2.3.14 (notification skipped)
+
+## Isolated the metadata panel in Shadow DOM
+- Moved the metadata table into Shadow DOM to reduce the impact of host-site CSS
+
+---
+
+# v2.3.13 (notification skipped)
+
+## Adjusted BMS-IR naming and cache behavior
+- Updated wording to use BMS-IR
+- Removed the temporary cache buster from metadata fetches
+
+---
+
+# v2.3.12 (notification skipped)
+
+## Supported LR2ALT official domains with and without www
+- Added support for both www and non-www LR2ALT official domains
+
+---
+
+# v2.3.11 (notification skipped)
+
+## Adjusted the LR2ALT official domain
+- Changed the LR2ALT official URL to the non-www domain
+
+---
+
+# v2.3.10 (notification skipped)
+
+## Added LR2ALT official-domain and external-fetch support
+- Added support for the LR2ALT official domain
+- Removed direct-IP support
+- Adjusted external fetch handling for CSP compatibility
+
+---
+
+# v2.3.9 (notification skipped)
+
+## Added support for LR2IR Alternative
+- Added support for LR2IR Alternative
+- Supported both hosts-file and direct-IP setups
+
+---
+
+# v2.3.8 (notification skipped)
+
+## Adjusted MD5 extraction on STELLAVERSE
+- STELLAVERSE now extracts MD5 values from score viewer links instead of LR2IR links
+
+---
+
+# v2.3.7 (notification skipped)
+
+## Improved BPM and TOTAL display
+- BPM MIN/MAX now support decimal values
+- TOTAL and BPM now omit digits after the third decimal place and show the full value in a tooltip
+- Undefined TOTAL values now display as undefined and show LR2/beatoraja-equivalent calculated values in the tooltip
+
+---
+
+# v2.3.6 (notification skipped)
+
+## Fixed STELLAVERSE selectors
+- Updated selectors to match the STELLAVERSE page structure
+
+---
+
+# v2.3.5 (notification skipped)
+
+## Added an EZ2PATTERN link
+- Added an EZ2PATTERN entry to LINK
+
+---
+
+# v2.3.4 (notification skipped)
+
+## Adjusted STELLAVERSE DOM handling
+- Fine-tuned DOM operations on STELLAVERSE
+- Fixed an issue where the song comment row could be removed instead of the IR link row on voting pages
+
+---
+
+# v2.3.3 (notification skipped)
 
 ## Added 24keys/48keys support and updated the parser accordingly
 - Updated the parser from v0.6.5 to v0.6.6
