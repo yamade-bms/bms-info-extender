@@ -12073,8 +12073,9 @@
       text-align: left;
     }
     .bmsie-version-notice-window {
-      width: min(680px, calc(100vw - 32px));
-      max-height: min(760px, calc(100vh - 32px));
+      width: 680px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
       overflow: auto;
       padding: 20px 20px 16px;
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -12096,8 +12097,7 @@
     .bmsie-version-notice-content {
       margin: 0;
       padding: 14px 16px;
-      min-height: 280px;
-      max-height: 280px;
+      height: 280px;
       overflow-y: auto;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 10px;
@@ -12132,6 +12132,27 @@
       background: #11131d;
       color: #f4f6ff;
       font-size: 15.2px;
+    }
+    .bmsie-version-notice-ad {
+      display: block;
+      aspect-ratio: 636 / 334;
+      margin-top: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      background: rgba(10, 12, 18, 0.72);
+      line-height: 0;
+      text-decoration: none;
+    }
+    .bmsie-version-notice-ad:focus-visible {
+      outline: 2px solid #84a4ff;
+      outline-offset: 2px;
+    }
+    .bmsie-version-notice-ad img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 0;
     }
     .bmsie-version-notice-footer {
       display: flex;
@@ -12857,6 +12878,24 @@
       controlsElement.append(languageLabel);
       const footerElement = document.createElement("div");
       footerElement.className = "bmsie-version-notice-footer";
+      const adLink = document.createElement("a");
+      adLink.className = "bmsie-version-notice-ad";
+      adLink.href = "https://neeted.github.io/bemusicseeker-unofficial-fork/index.ja.html";
+      adLink.target = "_blank";
+      adLink.rel = "noopener noreferrer";
+      const adImage = document.createElement("img");
+      adImage.alt = "be music seeker unofficial fork";
+      adImage.width = 636;
+      adImage.height = 334;
+      adLink.append(adImage);
+      void loadVersionNotificationImageDataUrl("https://bms.howan.jp/img/ogp-card.ja.jpg").then((dataUrl) => {
+        if (adImage.isConnected) {
+          adImage.src = dataUrl;
+        }
+      }).catch((error) => {
+        console.warn("リリースノート広告画像の取得に失敗しました:", error);
+        adLink.hidden = true;
+      });
       const checkboxLabel = document.createElement("label");
       checkboxLabel.className = "bmsie-version-notice-checkbox";
       const suppressCheckbox = document.createElement("input");
@@ -12868,7 +12907,7 @@
       okButton.type = "button";
       okButton.className = "bmsie-version-notice-ok";
       footerElement.append(checkboxLabel, okButton);
-      windowElement.append(versionElement, titleElement, contentElement, controlsElement, footerElement);
+      windowElement.append(versionElement, titleElement, contentElement, controlsElement, adLink, footerElement);
       overlay.append(windowElement);
       let currentLanguage = initialLanguage === "en" ? "en" : "ja";
       languageSelect.value = currentLanguage;
@@ -12913,6 +12952,24 @@
     }
     function renderNotificationBody(contentElement, bodyText = "") {
       contentElement.textContent = bodyText;
+    }
+    async function loadVersionNotificationImageDataUrl(url) {
+      const response = await userscriptFetch(url);
+      if (!response.ok) {
+        throw new Error(`Image request failed: ${response.status} ${response.statusText}`);
+      }
+      const imageBuffer = await response.arrayBuffer();
+      return `data:image/jpeg;base64,${arrayBufferToBase64(imageBuffer)}`;
+    }
+    function arrayBufferToBase64(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      const chunkSize = 32768;
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += chunkSize) {
+        const chunk = bytes.subarray(index, index + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+      return btoa(binary);
     }
     function bootstrap() {
       if (isBmsIrSongUrl(location.href)) {
