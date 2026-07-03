@@ -12158,21 +12158,9 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 12px;
       margin-top: 16px;
-    }
-    .bmsie-version-notice-checkbox {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      line-height: 1.45;
-      color: #f4f6ff;
-      cursor: pointer;
-    }
-    .bmsie-version-notice-checkbox input {
-      margin: 0;
-      accent-color: #84a4ff;
     }
     .bmsie-version-notice-ok {
       min-width: 92px;
@@ -12602,7 +12590,6 @@
         title: "BMS Info Extender リリースノート",
         body: RELEASE_NOTES_JA,
         languageLabel: "言語",
-        dontShowAgainLabel: "このバージョンの通知を再度表示しない",
         okLabel: "OK",
         languageOptions: {
           ja: "日本語",
@@ -12613,7 +12600,6 @@
         title: "BMS Info Extender Release Notes",
         body: RELEASE_NOTES_EN,
         languageLabel: "Language",
-        dontShowAgainLabel: "Do not show this version notice again",
         okLabel: "OK",
         languageOptions: {
           ja: "日本語",
@@ -12896,17 +12882,10 @@
         console.warn("リリースノート広告画像の取得に失敗しました:", error);
         adLink.hidden = true;
       });
-      const checkboxLabel = document.createElement("label");
-      checkboxLabel.className = "bmsie-version-notice-checkbox";
-      const suppressCheckbox = document.createElement("input");
-      suppressCheckbox.type = "checkbox";
-      suppressCheckbox.checked = false;
-      const checkboxText = document.createElement("span");
-      checkboxLabel.append(suppressCheckbox, checkboxText);
       const okButton = document.createElement("button");
       okButton.type = "button";
       okButton.className = "bmsie-version-notice-ok";
-      footerElement.append(checkboxLabel, okButton);
+      footerElement.append(okButton);
       windowElement.append(versionElement, titleElement, contentElement, controlsElement, adLink, footerElement);
       overlay.append(windowElement);
       let currentLanguage = initialLanguage === "en" ? "en" : "ja";
@@ -12918,9 +12897,7 @@
         renderNotificationLanguage(currentLanguage);
       });
       okButton.addEventListener("click", () => {
-        if (suppressCheckbox.checked) {
-          persistNotifiedVersion(version);
-        }
+        persistNotifiedVersion(version);
         host.remove();
       });
       shadowRoot.append(styleElement, overlay);
@@ -12930,7 +12907,6 @@
         versionElement.textContent = `version: ${version}`;
         titleElement.textContent = localizedContent.title;
         languageLabelText.textContent = localizedContent.languageLabel;
-        checkboxText.textContent = localizedContent.dontShowAgainLabel;
         okButton.textContent = localizedContent.okLabel;
         updateNotificationLanguageOptions(languageSelect, localizedContent.languageOptions);
         renderNotificationBody(contentElement, localizedContent.body);
