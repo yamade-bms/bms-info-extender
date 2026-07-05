@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   PREVIEW_RENDER_DIRTY,
+  PREVIEW_LINK_SITE,
   createBmsInfoPreview,
   createPreviewPreferenceStorage,
   DEFAULT_VIEWER_MODE,
@@ -490,6 +491,9 @@ test("metadata panel CSS keeps fixed layout and supports themed link colors", ()
   assert.match(BMSDATA_CSS, /\.bd-info a \{[^}]*color: var\(--bd-link-color\);[^}]*\}/);
   assert.match(BMSDATA_CSS, /\.bd-info a:hover \{[^}]*color: var\(--bd-link-hover-color\);[^}]*\}/);
   assert.match(BMSDATA_CSS, /\.bd-info \.bd-info-table \{[^}]*height: 100%;[^}]*margin: 0;[^}]*\}/);
+  assert.match(BMSDATA_CSS, /#bd-graph \{[^}]*display: block;[^}]*line-height: 0;[^}]*font-size: 0;[^}]*\}/);
+  assert.match(GRAPH_SURFACE_CSS, /:host \{[^}]*line-height: 0;[^}]*\}/);
+  assert.match(GRAPH_SURFACE_CSS, /\.bmsie-graph-surface \{[^}]*display: block;[^}]*inline-size: max-content;[^}]*line-height: 0;[^}]*\}/);
   assert.doesNotMatch(`${BMSDATA_CSS}\n${GRAPH_SURFACE_CSS}\n${OVERLAY_SURFACE_CSS}`, /\b[0-9.]+rem\b/);
 });
 
@@ -561,6 +565,100 @@ test("renderBmsData links MD5 records to BMS-IR", () => {
   assert.match(BMSDATA_TEMPLATE_HTML, /id="bd-bmsir"[^>]*>BMS-IR<\/a>/);
   assert.equal(bmsIrLink.href, "https://bms-ir.org/new/song?songmd5=f8dcdfe070630bbb365323c662561a1a&view=both");
   assert.equal(bmsIrLink.style.display, "inline");
+});
+
+test("renderBmsData links MD5 records to STELLAVERSE IR", () => {
+  const documentRef = new MockDocument();
+  const { container } = createPreviewContainerElements(documentRef);
+  const record = {
+    ...createNormalizedRecord("a".repeat(64)),
+    md5: "38616b85332037cc12924f2ae2840262",
+  };
+
+  renderBmsData(container, record);
+
+  const stellaverseIrLink = findElementById(container, "bd-stellaverse-ir");
+  assert.match(BMSDATA_TEMPLATE_HTML, /id="bd-stellaverse-ir"[^>]*>STELLAVERSE<span style="display:inline-block; width:2px;"><\/span>IR<\/a>/);
+  assert.equal(stellaverseIrLink.href, "https://ir.stellabms.xyz/charts/38616b85332037cc12924f2ae2840262");
+  assert.equal(stellaverseIrLink.style.display, "inline");
+});
+
+test("renderBmsData keeps the current site link hidden", () => {
+  const documentRef = new MockDocument();
+  const { container } = createPreviewContainerElements(documentRef);
+  const record = {
+    ...createNormalizedRecord("a".repeat(64)),
+    md5: "38616b85332037cc12924f2ae2840262",
+    stella: 12345,
+  };
+
+  renderBmsData(container, record, { currentSite: PREVIEW_LINK_SITE.stellaverseIr });
+
+  const stellaverseIrLink = findElementById(container, "bd-stellaverse-ir");
+  const stellaverseLink = findElementById(container, "bd-stellaverse");
+  assert.equal(stellaverseIrLink.href, "");
+  assert.equal(stellaverseIrLink.style.display, "none");
+  assert.equal(stellaverseLink.href, "https://stellabms.xyz/song/12345");
+  assert.equal(stellaverseLink.style.display, "inline");
+});
+
+test("renderBmsData resets stale metadata links on rerender", () => {
+  const documentRef = new MockDocument();
+  const { container } = createPreviewContainerElements(documentRef);
+  const fullRecord = {
+    ...createNormalizedRecord("a".repeat(64)),
+    md5: "38616b85332037cc12924f2ae2840262",
+    stella: 12345,
+  };
+  const shaOnlyRecord = {
+    ...createNormalizedRecord("b".repeat(64)),
+    md5: "",
+    stella: 0,
+  };
+
+  renderBmsData(container, fullRecord);
+  assert.equal(findElementById(container, "bd-stellaverse-ir").style.display, "inline");
+  assert.equal(findElementById(container, "bd-stellaverse").style.display, "inline");
+
+  renderBmsData(container, fullRecord, { currentSite: PREVIEW_LINK_SITE.stellaverseIr });
+  assert.equal(findElementById(container, "bd-stellaverse-ir").href, "");
+  assert.equal(findElementById(container, "bd-stellaverse-ir").style.display, "none");
+
+  renderBmsData(container, shaOnlyRecord);
+  assert.equal(findElementById(container, "bd-stellaverse-ir").href, "");
+  assert.equal(findElementById(container, "bd-stellaverse-ir").style.display, "none");
+  assert.equal(findElementById(container, "bd-stellaverse").href, "");
+  assert.equal(findElementById(container, "bd-stellaverse").style.display, "none");
+});
+
+test("createBmsInfoPreview applies current site link hiding during setRecord", async () => {
+  const environment = installPreviewTestEnvironment();
+  try {
+    const { preview, elements } = createPreviewHarness(environment.document, {
+      prefetchParsedScore: async () => {},
+      loadParsedScore: async () => createParsedScore(),
+      preferences: {
+        currentSite: PREVIEW_LINK_SITE.viewer,
+      },
+    });
+
+    preview.setRecord({
+      ...createNormalizedRecord("1".repeat(64)),
+      md5: "38616b85332037cc12924f2ae2840262",
+    });
+    await environment.settle();
+
+    const viewerLink = findElementById(elements.container, "bd-viewer");
+    const bmsIrLink = findElementById(elements.container, "bd-bmsir");
+    assert.equal(viewerLink.href, "");
+    assert.equal(viewerLink.style.display, "none");
+    assert.equal(bmsIrLink.style.display, "inline");
+
+    preview.destroy();
+    await environment.settle();
+  } finally {
+    environment.restore();
+  }
 });
 
 test("graph hover mode opens the viewer and updates the selected time", async () => {
@@ -2006,9 +2104,11 @@ function createPreviewContainerElements(documentRef) {
   container.shadowRoot.appendChild(panel);
   const ids = [
     "bd-bmsir",
+    "bd-stellaverse-ir",
     "bd-minir",
     "bd-mocha",
     "bd-viewer",
+    "bd-ez2pattern",
     "bd-bmssearch",
     "bd-bokutachi",
     "bd-stellaverse",
@@ -2035,6 +2135,19 @@ function createPreviewContainerElements(documentRef) {
     let element;
     element = documentRef.createElement("div");
     element.id = id;
+    if (id.startsWith("bd-") && [
+      "bd-bmsir",
+      "bd-stellaverse-ir",
+      "bd-minir",
+      "bd-mocha",
+      "bd-viewer",
+      "bd-ez2pattern",
+      "bd-bmssearch",
+      "bd-bokutachi",
+      "bd-stellaverse",
+    ].includes(id)) {
+      element.style.display = "none";
+    }
     panel.registerElement(id, element);
   }
   const graphHost = panel.querySelector("#bd-graph");

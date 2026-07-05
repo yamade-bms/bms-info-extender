@@ -6431,6 +6431,7 @@ function clamp4(value, minValue, maxValue) {
 
 // shared/preview-runtime/index.js
 var BMS_IR_SONG_BASE_URL = "https://bms-ir.org/new/song";
+var STELLAVERSE_IR_CHART_BASE_URL = "https://ir.stellabms.xyz/charts";
 var BMSSEARCH_PATTERN_API_BASE_URL = "https://api.bmssearch.net/v1/patterns/sha256";
 var BMSSEARCH_PATTERN_PAGE_BASE_URL = "https://bmssearch.net/patterns";
 var BOKUTACHI_BASE_URL = "https://boku.tachi.ac";
@@ -6488,6 +6489,17 @@ var PREVIEW_RENDER_DIRTY = {
 var PREVIEW_RENDER_ALL = Object.values(PREVIEW_RENDER_DIRTY).reduce((mask, flag) => mask | flag, 0);
 var bmsSearchPatternAvailabilityCache = /* @__PURE__ */ new Map();
 var bokutachiResolveCache = /* @__PURE__ */ new Map();
+var PREVIEW_LINK_SITE = Object.freeze({
+  bmsIr: "bms-ir",
+  stellaverseIr: "stellaverse-ir",
+  minir: "minir",
+  mocha: "mocha",
+  bokutachi: "bokutachi",
+  viewer: "viewer",
+  ez2pattern: "ez2pattern",
+  bmsSearch: "bms-search",
+  stellaverse: "stellaverse"
+});
 function createPreviewPreferenceStorage({ read = () => null, write = () => {
 } } = {}) {
   return {
@@ -6801,6 +6813,7 @@ var BMSDATA_CSS = `
   .bd-info td { border: unset; padding: 1.6px 3.2px; height: 16px; white-space: nowrap; font-size: 14px; }
   .bd-info .bd-header-cell { background-color: var(--bd-hdbk); color: var(--bd-hdtx); }
   .bd-info .bd-lanenote { margin-right: 3.2px; padding: 1.6px 3.2px; border-radius: 2px; font-size: 12px; }
+  #bd-graph { display: block; line-height: 0; font-size: 0; }
   .bd-table-list { flex: 1; display: flex; min-width: 100px; flex-direction: column; box-sizing: border-box; }
   .bd-table-list .bd-header-cell { padding: 1.6px 3.2px; min-height: 16px; white-space: nowrap; font-size: 14px; color: var(--bd-hdtx); display: flex; align-items: center; }
   .bd-table-scroll { overflow: auto; flex: 1 1 auto; scrollbar-color: var(--bd-hdbk) white; scrollbar-width: thin; }
@@ -7032,7 +7045,7 @@ var GRAPH_SURFACE_CSS = `
     color: #fff;
     font-family: ${ISOLATED_UI_FONT_FAMILY};
     font-size: ${ISOLATED_UI_ROOT_FONT_SIZE};
-    line-height: 1.25;
+    line-height: 0;
     box-sizing: border-box;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
@@ -7044,7 +7057,8 @@ var GRAPH_SURFACE_CSS = `
 
   .bmsie-graph-surface {
     position: relative;
-    display: inline-block;
+    display: block;
+    inline-size: max-content;
     min-inline-size: 100%;
     line-height: 0;
     background: #000;
@@ -7635,7 +7649,7 @@ var BMSDATA_TEMPLATE_HTML = `
         <tr>
           <td class="bd-header-cell">LINK</td>
           <td colspan="3">
-            <a href="" id="bd-bmsir" style="display: none;">BMS-IR</a><a href="" id="bd-minir" style="display: none;">MinIR</a><a href="" id="bd-mocha" style="display: none;">Mocha</a><a href="" id="bd-viewer" style="display: none;">Viewer</a><a href="" id="bd-ez2pattern" style="display: none;">EZ2PT</a><a href="" id="bd-bmssearch" style="display: none;">BMS<span style="display:inline-block; width:2px;"></span>SEARCH</a><a href="" id="bd-bokutachi" style="display: none;">Bokutachi</a><a href="" id="bd-stellaverse" style="display: none;">STELLAVERSE</a>
+            <a href="" id="bd-bmsir" style="display: none;">BMS-IR</a><a href="" id="bd-stellaverse-ir" style="display: none;">STELLAVERSE<span style="display:inline-block; width:2px;"></span>IR</a><a href="" id="bd-minir" style="display: none;">MinIR</a><a href="" id="bd-mocha" style="display: none;">Mocha</a><a href="" id="bd-bokutachi" style="display: none;">Bokutachi</a><a href="" id="bd-viewer" style="display: none;">Viewer</a><a href="" id="bd-ez2pattern" style="display: none;">EZ2PT</a><a href="" id="bd-bmssearch" style="display: none;">BMS<span style="display:inline-block; width:2px;"></span>SEARCH</a><a href="" id="bd-stellaverse" style="display: none;">STELLAVERSE</a>
           </td>
         </tr>
         <tr>
@@ -7781,13 +7795,22 @@ async function checkBmsSearchPatternExists(sha256) {
   }
   return cachedPromise;
 }
-async function renderBmsSearchLinkIfAvailable(container, sha256) {
+async function renderBmsSearchLinkIfAvailable(container, sha256, { currentSite = null } = {}) {
+  const bmsSearchLink = queryBmsDataElement(container, "bd-bmssearch");
+  if (!bmsSearchLink) {
+    return;
+  }
+  const renderToken = {};
+  bmsSearchLink.__bmsSearchRenderToken = renderToken;
+  hideLink(bmsSearchLink);
   try {
+    if (currentSite === PREVIEW_LINK_SITE.bmsSearch) {
+      return;
+    }
     if (!sha256 || !await checkBmsSearchPatternExists(sha256) || !container.isConnected) {
       return;
     }
-    const bmsSearchLink = queryBmsDataElement(container, "bd-bmssearch");
-    if (!bmsSearchLink) {
+    if (bmsSearchLink.__bmsSearchRenderToken !== renderToken) {
       return;
     }
     showLink(bmsSearchLink, `${BMSSEARCH_PATTERN_PAGE_BASE_URL}/${sha256}`);
@@ -7838,19 +7861,24 @@ async function resolveBokutachiSongUrl(record) {
   }
   return null;
 }
-async function appendBokutachiLinkIfAvailable(container, record) {
+async function appendBokutachiLinkIfAvailable(container, record, { currentSite = null } = {}) {
   const link = queryBmsDataElement(container, "bd-bokutachi");
   if (!link) {
     return;
   }
-  hideBokutachiLink(link);
+  const renderToken = {};
+  link.__bmsBokutachiRenderToken = renderToken;
+  hideLink(link);
+  if (currentSite === PREVIEW_LINK_SITE.bokutachi) {
+    return;
+  }
   const requestKey = createBokutachiResolveRequestKey(record);
   link.__bmsBokutachiResolveRequestKey = requestKey;
   if (!requestKey) {
     return;
   }
   const url = await resolveBokutachiSongUrl(record);
-  if (!url || !link.isConnected || link.__bmsBokutachiResolveRequestKey !== requestKey) {
+  if (!url || !link.isConnected || link.__bmsBokutachiResolveRequestKey !== requestKey || link.__bmsBokutachiRenderToken !== renderToken) {
     return;
   }
   link.href = url;
@@ -7859,9 +7887,9 @@ async function appendBokutachiLinkIfAvailable(container, record) {
   link.setAttribute("rel", "noopener noreferrer");
   link.style.display = "inline";
 }
-function renderBmsData(container, normalizedRecord) {
+function renderBmsData(container, normalizedRecord, { currentSite = null } = {}) {
   const getById = (id) => queryBmsDataElement(container, id);
-  renderLinks(container, normalizedRecord);
+  renderLinks(container, normalizedRecord, { currentSite });
   getById("bd-sha256").textContent = normalizedRecord.sha256;
   getById("bd-md5").textContent = normalizedRecord.md5;
   getById("bd-bmsid").textContent = normalizedRecord.bmsid ? normalizedRecord.bmsid : "Undefined";
@@ -7898,8 +7926,8 @@ function renderBmsData(container, normalizedRecord) {
   renderLaneNotes(container, normalizedRecord);
   renderTables(container, normalizedRecord);
   container.style.display = "block";
-  void renderBmsSearchLinkIfAvailable(container, normalizedRecord.sha256);
-  void appendBokutachiLinkIfAvailable(container, normalizedRecord);
+  void renderBmsSearchLinkIfAvailable(container, normalizedRecord.sha256, { currentSite });
+  void appendBokutachiLinkIfAvailable(container, normalizedRecord, { currentSite });
 }
 function renderTextWithTooltip(element, text, tooltipText) {
   element.textContent = text;
@@ -8050,7 +8078,8 @@ function createBmsInfoPreview({
   onViewerOpenChange = () => {
   },
   onRuntimeError = () => {
-  }
+  },
+  currentSite = null
 }) {
   const graphHost = queryBmsDataElement(container, "bd-graph");
   if (!graphHost) {
@@ -8436,7 +8465,7 @@ function createBmsInfoPreview({
       return;
     }
     if (recordChanged) {
-      renderBmsData(container, normalizedRecord);
+      renderBmsData(container, normalizedRecord, { currentSite });
       shell.style.setProperty("--score-viewer-width", `${getActiveViewerWidth(state2, normalizedRecord.mode)}px`);
       renderMask |= PREVIEW_RENDER_DIRTY.record;
     }
@@ -9076,20 +9105,50 @@ function createBmsInfoPreview({
     setViewerDetailSettingsOpen(false);
   }
 }
-function renderLinks(container, normalizedRecord) {
+function renderLinks(container, normalizedRecord, { currentSite = null } = {}) {
   const getById = (id) => queryBmsDataElement(container, id);
+  const shouldShowSite = (siteId) => currentSite !== siteId;
+  resetMetadataLinks(container);
   if (normalizedRecord.md5) {
-    showLink(getById("bd-bmsir"), createBmsIrSongUrl(normalizedRecord.md5));
-    showLink(getById("bd-viewer"), `https://bms-score-viewer.pages.dev/view?md5=${normalizedRecord.md5}`);
+    if (shouldShowSite(PREVIEW_LINK_SITE.bmsIr)) {
+      showLink(getById("bd-bmsir"), createBmsIrSongUrl(normalizedRecord.md5));
+    }
+    if (shouldShowSite(PREVIEW_LINK_SITE.stellaverseIr)) {
+      showLink(getById("bd-stellaverse-ir"), createStellaverseIrChartUrl(normalizedRecord.md5));
+    }
+    if (shouldShowSite(PREVIEW_LINK_SITE.viewer)) {
+      showLink(getById("bd-viewer"), `https://bms-score-viewer.pages.dev/view?md5=${normalizedRecord.md5}`);
+    }
   }
   if (normalizedRecord.sha256) {
-    showLink(getById("bd-minir"), `https://www.gaftalk.com/minir/#/viewer/song/${normalizedRecord.sha256}/0`);
-    showLink(getById("bd-mocha"), `https://mocha-repository.info/song.php?sha256=${normalizedRecord.sha256}`);
-    showLink(getById("bd-ez2pattern"), `https://ez2pattern.kr/bms/chart?sha256=${normalizedRecord.sha256}`);
+    if (shouldShowSite(PREVIEW_LINK_SITE.minir)) {
+      showLink(getById("bd-minir"), `https://www.gaftalk.com/minir/#/viewer/song/${normalizedRecord.sha256}/0`);
+    }
+    if (shouldShowSite(PREVIEW_LINK_SITE.mocha)) {
+      showLink(getById("bd-mocha"), `https://mocha-repository.info/song.php?sha256=${normalizedRecord.sha256}`);
+    }
+    if (shouldShowSite(PREVIEW_LINK_SITE.ez2pattern)) {
+      showLink(getById("bd-ez2pattern"), `https://ez2pattern.kr/bms/chart?sha256=${normalizedRecord.sha256}`);
+    }
   }
-  if (normalizedRecord.stella) {
+  if (normalizedRecord.stella && shouldShowSite(PREVIEW_LINK_SITE.stellaverse)) {
     showLink(getById("bd-stellaverse"), `https://stellabms.xyz/song/${normalizedRecord.stella}`);
   }
+}
+function resetMetadataLinks(container) {
+  [
+    "bd-bmsir",
+    "bd-stellaverse-ir",
+    "bd-minir",
+    "bd-mocha",
+    "bd-bokutachi",
+    "bd-viewer",
+    "bd-ez2pattern",
+    "bd-bmssearch",
+    "bd-stellaverse"
+  ].forEach((id) => {
+    hideLink(queryBmsDataElement(container, id));
+  });
 }
 function renderLaneNotes(container, normalizedRecord) {
   const laneNotesContainer = queryBmsDataElement(container, "bd-lanenotes-div");
@@ -9240,7 +9299,7 @@ async function resolveBokutachiSongUrlForGame(game, identifier) {
   }
   return `${BOKUTACHI_BASE_URL}/games/${encodeURIComponent(game)}/songs/${encodeURIComponent(normalizedSongID)}/${encodeURIComponent(normalizedDifficulty)}`;
 }
-function hideBokutachiLink(link) {
+function hideLink(link) {
   if (!link) {
     return;
   }
@@ -9254,6 +9313,9 @@ function hideBokutachiLink(link) {
 }
 function createBmsIrSongUrl(md5) {
   return `${BMS_IR_SONG_BASE_URL}?songmd5=${encodeURIComponent(md5)}&view=both`;
+}
+function createStellaverseIrChartUrl(md5) {
+  return `${STELLAVERSE_IR_CHART_BASE_URL}/${encodeURIComponent(md5)}`;
 }
 function showLink(linkElement, href) {
   if (!linkElement) {
@@ -10243,6 +10305,7 @@ function ensurePreviewRuntime() {
   state.previewRuntime = createBmsInfoPreview({
     container: previewContainer,
     documentRef: document,
+    currentSite: PREVIEW_LINK_SITE.viewer,
     loadParsedScore: async (record) => {
       if (state.parsedScore && state.sha256 === record.sha256) {
         return state.parsedScore;

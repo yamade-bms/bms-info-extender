@@ -16,10 +16,10 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
   const SCORE_BASE_URL = "https://bms-info-extender.netlify.app/score";
   const SCORE_R2_BASE_URL = "https://bms.howan.jp/score";
   const BMSSEARCH_PATTERN_PAGE_BASE_URL = "https://bmssearch.net/patterns";
-  const SCRIPT_VERSION_FALLBACK = "2.3.17";
+  const SCRIPT_VERSION_FALLBACK = "2.3.18";
   const userscriptFetch = createUserscriptFetch();
   PreviewRuntime.setPreviewRuntimeFetch(userscriptFetch);
-  const SKIP_VERSION_NOTIFICATION_FROM = "2.3.0";
+  const SKIP_VERSION_NOTIFICATION_FROM = "2.3.18";
   const VERSION_NOTIFICATION_STORAGE_KEYS = {
     lastNotifiedVersion: "bms-info-extender.versionNotification.lastNotifiedVersion",
     notificationLanguage: "bms-info-extender.versionNotification.language"
@@ -52,8 +52,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       text-align: left;
     }
     .bmsie-version-notice-window {
-      width: min(680px, calc(100vw - 32px));
-      max-height: min(760px, calc(100vh - 32px));
+      width: 680px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
       overflow: auto;
       padding: 20px 20px 16px;
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -75,8 +76,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     .bmsie-version-notice-content {
       margin: 0;
       padding: 14px 16px;
-      min-height: 280px;
-      max-height: 280px;
+      height: 280px;
       overflow-y: auto;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 10px;
@@ -112,25 +112,34 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       color: #f4f6ff;
       font-size: 15.2px;
     }
+    .bmsie-version-notice-ad {
+      display: block;
+      aspect-ratio: 636 / 334;
+      margin-top: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      background: rgba(10, 12, 18, 0.72);
+      line-height: 0;
+      text-decoration: none;
+    }
+    .bmsie-version-notice-ad:focus-visible {
+      outline: 2px solid #84a4ff;
+      outline-offset: 2px;
+    }
+    .bmsie-version-notice-ad img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 0;
+    }
     .bmsie-version-notice-footer {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 12px;
       margin-top: 16px;
-    }
-    .bmsie-version-notice-checkbox {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      line-height: 1.45;
-      color: #f4f6ff;
-      cursor: pointer;
-    }
-    .bmsie-version-notice-checkbox input {
-      margin: 0;
-      accent-color: #84a4ff;
     }
     .bmsie-version-notice-ok {
       min-width: 92px;
@@ -144,7 +153,131 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     }
   `;
     const RELEASE_NOTES_JA =
-`# v2.3.3 (通知スキップ)
+`# v2.3.18
+
+## STELLAVERSE IR曲ページへの対応
+- STELLAVERSE IRの曲ページにメタデータ、ノーツ分布/BPM推移グラフ、譜面ビューアを表示するようにしました
+- STELLAVERSE IRはSPAのため、URL変更時に拡張パネルを明示的にクリーンアップし、現在のURLとページ内MD5が一致する場合だけ挿入するようにしました
+- 初回表示時のhydrationで拡張パネルが消される場合に、同一ページ内で限定的に再試行するようにしました
+- グラフ下に余分な空白が出にくいよう、グラフ領域のサイズ処理を調整しました
+
+## LINKの整理
+- LINKにSTELLAVERSE IRを追加しました
+- LINKの並び順を BMS-IR, STELLAVERSE IR, MinIR, Mocha, Bokutachi, Viewer, EZ2PT, BMS SEARCH, STELLAVERSE に整理しました
+- 表示中のサイト自身へのLINKは非表示にするようにしました
+
+---
+
+# v2.3.17 (通知スキップ)
+
+## BMS-IR曲ページでの拡張パネル挿入位置を調整
+- タグパネルの手前へ拡張パネルを挿入するようにしました
+- タグパネルが見つからない場合は、曲名の手前へ挿入するフォールバックを追加しました
+
+---
+
+# v2.3.16 (通知スキップ)
+
+## Bokutachi譜面ページへの対応
+- Bokutachi譜面ページにメタデータ、グラフ、譜面ビューアを表示するようにしました
+- Bokutachiページの対象URLを調整しました
+- Shadow DOM内UIの基準フォントサイズを明示しました
+
+---
+
+# v2.3.15 (通知スキップ)
+
+## Bokutachi LINKの解決方法を変更
+- Bokutachi LINKをTachi hash resolve APIで解決するようにしました
+- STELLAVERSEの既存リンクを流用する処理を廃止しました
+
+---
+
+# v2.3.14 (通知スキップ)
+
+## メタデータパネルをShadow DOMへ分離
+- 元サイトのCSS影響を受けにくくするため、メタデータテーブルをShadow DOM内へ分離しました
+
+---
+
+# v2.3.13 (通知スキップ)
+
+## BMS-IR名称とキャッシュ処理を調整
+- 表示文言をBMS-IRへ修正しました
+- メタデータ取得時の暫定キャッシュバスターを廃止しました
+
+---
+
+# v2.3.12 (通知スキップ)
+
+## LR2ALT公式ドメインのwww有無に両対応
+- LR2ALT公式ドメインのwwwあり/なしの両方に対応しました
+
+---
+
+# v2.3.11 (通知スキップ)
+
+## LR2ALT公式ドメインを調整
+- LR2ALT公式ドメインのURLをwwwなしへ変更しました
+
+---
+
+# v2.3.10 (通知スキップ)
+
+## LR2ALT公式ドメインと外部取得に対応
+- LR2ALT公式ドメインに対応しました
+- IP直指定対応を廃止しました
+- 外部取得のCSP対応を調整しました
+
+---
+
+# v2.3.9 (通知スキップ)
+
+## LR2IR Alternativeに対応
+- LR2IR Alternativeに対応しました
+- hosts編集とIP直指定の双方に対応しました
+
+---
+
+# v2.3.8 (通知スキップ)
+
+## STELLAVERSEでのMD5抽出を調整
+- STELLAVERSEではLR2IRリンクではなく、譜面ビューアリンクからMD5を抽出するようにしました
+
+---
+
+# v2.3.7 (通知スキップ)
+
+## BPM/TOTAL表示を改善
+- BPMのMIN/MAXで小数に対応しました
+- TOTALとBPMは小数点以下3桁以降を省略し、ツールチップに全量を表示するようにしました
+- TOTAL未定義時はundefined表示とし、ツールチップにLR2/beatoraja相当の計算値を表示するようにしました
+
+---
+
+# v2.3.6 (通知スキップ)
+
+## STELLAVERSEのセレクターを修正
+- STELLAVERSE側のページ構造に合わせてセレクターを修正しました
+
+---
+
+# v2.3.5 (通知スキップ)
+
+## EZ2PATTERNリンクを追加
+- LINKにEZ2PATTERNへのリンクを追加しました
+
+---
+
+# v2.3.4 (通知スキップ)
+
+## STELLAVERSEのDOM操作を調整
+- STELLAVERSEでのDOM操作を微調整しました
+- 投票ページでIRリンク行ではなく曲コメント行が削除される問題を修正しました
+
+---
+
+# v2.3.3 (通知スキップ)
 
 ## 24keys/48keys対応とそれに伴うパーサーの更新
 - パーサーを更新しました(v0.6.5→v0.6.6)
@@ -227,7 +360,131 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
 ## 従来からの挙動について補足
 - 譜面ビューアはドラッグやホイールでも動かすことができます`;
     const RELEASE_NOTES_EN =
-`# v2.3.3 (notification skipped)
+`# v2.3.18
+
+## Added support for STELLAVERSE IR chart pages
+- STELLAVERSE IR chart pages now show metadata, the notes density/BPM graph, and the score viewer
+- Because STELLAVERSE IR is an SPA, the userscript now explicitly cleans up the extension panel on route changes and inserts it only when the URL MD5 matches the MD5 shown in the page metadata
+- If the initial hydration removes the extension panel, the userscript now performs a limited retry on the same page
+- Adjusted graph sizing so extra blank space is less likely to appear below the graph
+
+## Reorganized LINK entries
+- Added a STELLAVERSE IR link
+- Reordered LINK entries to BMS-IR, STELLAVERSE IR, MinIR, Mocha, Bokutachi, Viewer, EZ2PT, BMS SEARCH, STELLAVERSE
+- The link for the current site is now hidden while viewing that site
+
+---
+
+# v2.3.17 (notification skipped)
+
+## Adjusted where the extension panel is inserted on BMS-IR song pages
+- The extension panel is now inserted before the tags panel
+- Added a fallback that inserts the panel before the song title when the tags panel cannot be found
+
+---
+
+# v2.3.16 (notification skipped)
+
+## Added support for Bokutachi chart pages
+- Bokutachi chart pages now show metadata, the graph, and the score viewer
+- Adjusted the target URL matching for Bokutachi pages
+- Explicitly set the base font size for UI inside Shadow DOM
+
+---
+
+# v2.3.15 (notification skipped)
+
+## Changed how Bokutachi links are resolved
+- Bokutachi links are now resolved through the Tachi hash resolve API
+- Removed the previous behavior that reused existing STELLAVERSE links
+
+---
+
+# v2.3.14 (notification skipped)
+
+## Isolated the metadata panel in Shadow DOM
+- Moved the metadata table into Shadow DOM to reduce the impact of host-site CSS
+
+---
+
+# v2.3.13 (notification skipped)
+
+## Adjusted BMS-IR naming and cache behavior
+- Updated wording to use BMS-IR
+- Removed the temporary cache buster from metadata fetches
+
+---
+
+# v2.3.12 (notification skipped)
+
+## Supported LR2ALT official domains with and without www
+- Added support for both www and non-www LR2ALT official domains
+
+---
+
+# v2.3.11 (notification skipped)
+
+## Adjusted the LR2ALT official domain
+- Changed the LR2ALT official URL to the non-www domain
+
+---
+
+# v2.3.10 (notification skipped)
+
+## Added LR2ALT official-domain and external-fetch support
+- Added support for the LR2ALT official domain
+- Removed direct-IP support
+- Adjusted external fetch handling for CSP compatibility
+
+---
+
+# v2.3.9 (notification skipped)
+
+## Added support for LR2IR Alternative
+- Added support for LR2IR Alternative
+- Supported both hosts-file and direct-IP setups
+
+---
+
+# v2.3.8 (notification skipped)
+
+## Adjusted MD5 extraction on STELLAVERSE
+- STELLAVERSE now extracts MD5 values from score viewer links instead of LR2IR links
+
+---
+
+# v2.3.7 (notification skipped)
+
+## Improved BPM and TOTAL display
+- BPM MIN/MAX now support decimal values
+- TOTAL and BPM now omit digits after the third decimal place and show the full value in a tooltip
+- Undefined TOTAL values now display as undefined and show LR2/beatoraja-equivalent calculated values in the tooltip
+
+---
+
+# v2.3.6 (notification skipped)
+
+## Fixed STELLAVERSE selectors
+- Updated selectors to match the STELLAVERSE page structure
+
+---
+
+# v2.3.5 (notification skipped)
+
+## Added an EZ2PATTERN link
+- Added an EZ2PATTERN entry to LINK
+
+---
+
+# v2.3.4 (notification skipped)
+
+## Adjusted STELLAVERSE DOM handling
+- Fine-tuned DOM operations on STELLAVERSE
+- Fixed an issue where the song comment row could be removed instead of the IR link row on voting pages
+
+---
+
+# v2.3.3 (notification skipped)
 
 ## Added 24keys/48keys support and updated the parser accordingly
 - Updated the parser from v0.6.5 to v0.6.6
@@ -314,7 +571,6 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       title: "BMS Info Extender リリースノート",
       body: RELEASE_NOTES_JA,
       languageLabel: "言語",
-      dontShowAgainLabel: "このバージョンの通知を再度表示しない",
       okLabel: "OK",
       languageOptions: {
         ja: "日本語",
@@ -325,7 +581,6 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       title: "BMS Info Extender Release Notes",
       body: RELEASE_NOTES_EN,
       languageLabel: "Language",
-      dontShowAgainLabel: "Do not show this version notice again",
       okLabel: "OK",
       languageOptions: {
         ja: "日本語",
@@ -341,6 +596,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
   const BMS_IR_MD5_PATTERN = /^[0-9a-fA-F]{32}$/;
   const BOKUTACHI_HOST = "boku.tachi.ac";
   const BOKUTACHI_CHART_PATH_PATTERN = /^\/games\/([^/]+)\/charts\/([^/]+)\/?$/;
+  const STELLAVERSE_IR_HOST = "ir.stellabms.xyz";
+  const STELLAVERSE_IR_CHART_PATH_PATTERN = /^\/charts\/([0-9a-fA-F]{32})\/?$/;
+  const STELLAVERSE_IR_SITE_ID = PreviewRuntime.PREVIEW_LINK_SITE.stellaverseIr;
   const BMS_IR_SELECTORS = {
     tagSectionPanel: "#box > div.panel.song-section-tags",
     songTitle: "#box > h1"
@@ -360,6 +618,18 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     hdbk: "#1f1d20",
     linkColor: "#f7f7f7",
     linkHoverColor: "#6c8ed4"
+  };
+  const STELLAVERSE_IR_THEME = {
+    dctx: "#333333",
+    dcbk: "#ffffff",
+    hdtx: "#eeeeff",
+    hdbk: "#222244",
+    linkColor: "#4444ee",
+    linkHoverColor: "red"
+  };
+  const STELLAVERSE_IR_SELECTORS = {
+    chartHeader: "#box > div.chart-header",
+    metaBox: "#box > div.meta-box"
   };
   const STELLAVERSE_THEMES = {
     dark: {
@@ -465,6 +735,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    * @property {PageIdentifiers} identifiers
    * @property {PageInsertion} insertion
    * @property {PageTheme} theme
+   * @property {string=} currentSite
+   * @property {string=} siteId
+   * @property {string=} pageKey
    */
 
   /**
@@ -474,12 +747,26 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    */
 
   /**
+   * サイト別 updatePage の実行結果。
+   * @typedef {Object} UpdatePageResult
+   * @property {boolean=} retry
+   */
+
+  /**
+   * 拡張パネル描画パイプラインの実行結果。
+   * @typedef {Object} InsertBmsDataResult
+   * @property {boolean} ok
+   * @property {"success"|"not-found"|"detached"} reason
+   */
+
+  /**
    * SPA 監視の設定。
    * @typedef {Object} WatchSpaPageConfig
    * @property {string} siteName
    * @property {(url: string) => boolean} matchUrl
-   * @property {(helpers: UpdatePageHelpers) => Promise<void>} updatePage
+   * @property {(helpers: UpdatePageHelpers) => Promise<void|UpdatePageResult>} updatePage
    * @property {(() => boolean)=} isSettled
+   * @property {((details: { previousUrl: string, currentUrl: string }) => void)=} cleanupPage
    */
 
   /**
@@ -692,20 +979,33 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     const footerElement = document.createElement("div");
     footerElement.className = "bmsie-version-notice-footer";
 
-    const checkboxLabel = document.createElement("label");
-    checkboxLabel.className = "bmsie-version-notice-checkbox";
-    const suppressCheckbox = document.createElement("input");
-    suppressCheckbox.type = "checkbox";
-    suppressCheckbox.checked = false;
-    const checkboxText = document.createElement("span");
-    checkboxLabel.append(suppressCheckbox, checkboxText);
+    const adLink = document.createElement("a");
+    adLink.className = "bmsie-version-notice-ad";
+    adLink.href = "https://neeted.github.io/bemusicseeker-unofficial-fork/index.ja.html";
+    adLink.target = "_blank";
+    adLink.rel = "noopener noreferrer";
+    const adImage = document.createElement("img");
+    adImage.alt = "be music seeker unofficial fork";
+    adImage.width = 636;
+    adImage.height = 334;
+    adLink.append(adImage);
+    void loadVersionNotificationImageDataUrl("https://bms.howan.jp/img/ogp-card.ja.jpg")
+      .then((dataUrl) => {
+        if (adImage.isConnected) {
+          adImage.src = dataUrl;
+        }
+      })
+      .catch((error) => {
+        console.warn("リリースノート広告画像の取得に失敗しました:", error);
+        adLink.hidden = true;
+      });
 
     const okButton = document.createElement("button");
     okButton.type = "button";
     okButton.className = "bmsie-version-notice-ok";
 
-    footerElement.append(checkboxLabel, okButton);
-    windowElement.append(versionElement, titleElement, contentElement, controlsElement, footerElement);
+    footerElement.append(okButton);
+    windowElement.append(versionElement, titleElement, contentElement, controlsElement, adLink, footerElement);
     overlay.append(windowElement);
 
     let currentLanguage = initialLanguage === "en" ? "en" : "ja";
@@ -719,9 +1019,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     });
 
     okButton.addEventListener("click", () => {
-      if (suppressCheckbox.checked) {
-        persistNotifiedVersion(version);
-      }
+      persistNotifiedVersion(version);
       host.remove();
     });
 
@@ -733,7 +1031,6 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       versionElement.textContent = `version: ${version}`;
       titleElement.textContent = localizedContent.title;
       languageLabelText.textContent = localizedContent.languageLabel;
-      checkboxText.textContent = localizedContent.dontShowAgainLabel;
       okButton.textContent = localizedContent.okLabel;
       updateNotificationLanguageOptions(languageSelect, localizedContent.languageOptions);
       renderNotificationBody(contentElement, localizedContent.body);
@@ -760,6 +1057,26 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     contentElement.textContent = bodyText;
   }
 
+  async function loadVersionNotificationImageDataUrl(url) {
+    const response = await userscriptFetch(url);
+    if (!response.ok) {
+      throw new Error(`Image request failed: ${response.status} ${response.statusText}`);
+    }
+    const imageBuffer = await response.arrayBuffer();
+    return `data:image/jpeg;base64,${arrayBufferToBase64(imageBuffer)}`;
+  }
+
+  function arrayBufferToBase64(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    const chunkSize = 0x8000;
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      const chunk = bytes.subarray(index, index + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+  }
+
   /**
    * 対応サイトごとの初期化だけをトップレベルから起動する。
    * @returns {void}
@@ -773,6 +1090,9 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     switch (location.hostname) {
       case 'stellabms.xyz':
         stellaverse();
+        break;
+      case STELLAVERSE_IR_HOST:
+        stellaverseIr();
         break;
       case BOKUTACHI_HOST:
         bokutachi();
@@ -820,6 +1140,23 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     return Boolean(getBokutachiChartRoute(url));
   }
 
+  function getStellaverseIrChartMd5(url) {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.hostname !== STELLAVERSE_IR_HOST) {
+        return null;
+      }
+      const match = parsedUrl.pathname.match(STELLAVERSE_IR_CHART_PATH_PATTERN);
+      return match ? match[1].toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function isStellaverseIrChartUrl(url) {
+    return Boolean(getStellaverseIrChartMd5(url));
+  }
+
   /**
    * history API を一度だけパッチし、SPA 遷移時に locationchange を発火させる。
    * @returns {void}
@@ -857,23 +1194,39 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    * @param {WatchSpaPageConfig} config
    * @returns {void}
    */
-  function watchSpaPage({ siteName, matchUrl, updatePage, isSettled }) {
+  function watchSpaPage({ siteName, matchUrl, updatePage, isSettled, cleanupPage }) {
     let lastUrl = location.href;
     let completedUrl = null;
     let observer = null;
     let isUpdating = false;
+    let pendingRouteUpdate = false;
+    let routeGeneration = 0;
+    let requestedRetryCount = 0;
+    const maxRequestedRetriesPerUrl = 2;
 
     // 同じ URL での再実行を止めるため、サイト側処理が完了した時点を記録する。
-    function markUpdated() {
-      completedUrl = location.href;
+    function createMarkUpdated(updateUrl, updateGeneration) {
+      return () => {
+        if (location.href !== updateUrl || routeGeneration !== updateGeneration) {
+          console.info(`${siteName}: URL変更後に完了通知されたため無視します`, updateUrl);
+          return;
+        }
+        completedUrl = updateUrl;
+      };
     }
 
     function shouldStopObserving() {
       return completedUrl === location.href || !matchUrl(location.href) || Boolean(isSettled?.());
     }
 
-    async function runUpdate() {
-      if (isUpdating || completedUrl === location.href || !matchUrl(location.href) || isSettled?.()) {
+    async function runUpdate({ queueIfUpdating = false } = {}) {
+      if (isUpdating) {
+        if (queueIfUpdating) {
+          pendingRouteUpdate = true;
+        }
+        return;
+      }
+      if (completedUrl === location.href || !matchUrl(location.href) || isSettled?.()) {
         if (shouldStopObserving()) {
           stopObserving();
         }
@@ -881,14 +1234,37 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       }
 
       isUpdating = true;
+      const updateUrl = location.href;
+      const updateGeneration = routeGeneration;
+      let updateResult;
       try {
-        await updatePage({ markUpdated });
+        updateResult = await updatePage({ markUpdated: createMarkUpdated(updateUrl, updateGeneration) });
       } finally {
         isUpdating = false;
+        const shouldRunPendingRouteUpdate = pendingRouteUpdate;
+        pendingRouteUpdate = false;
+        const canUseUpdateResult = location.href === updateUrl && routeGeneration === updateGeneration;
+        const shouldRunRequestedRetry = canUseUpdateResult
+          && updateResult?.retry === true
+          && requestedRetryCount < maxRequestedRetriesPerUrl;
+        if (shouldRunRequestedRetry) {
+          requestedRetryCount += 1;
+        }
         if (shouldStopObserving()) {
           stopObserving();
+        } else if ((shouldRunPendingRouteUpdate || shouldRunRequestedRetry) && !document.hidden) {
+          void runUpdate();
         }
       }
+    }
+
+    function scheduleRunUpdate({ queueIfUpdating = false } = {}) {
+      if (document.hidden) {
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        void runUpdate({ queueIfUpdating });
+      });
     }
 
     function startObserving() {
@@ -898,8 +1274,12 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
 
       console.log(`👁️ ${siteName}: MutationObserverによる監視を開始します`);
 
-      observer = new MutationObserver(async () => {
+      observer = new MutationObserver(async (mutationRecords) => {
         console.info("MutationObserverがDOMの変化を検知しました");
+        if (isOnlyBmsInfoOwnedMutation(mutationRecords)) {
+          console.info("拡張パネル自身のDOM変化のため更新をスキップします");
+          return;
+        }
         if (!document.hidden) {
           await runUpdate();
         }
@@ -908,6 +1288,34 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function isOnlyBmsInfoOwnedMutation(mutationRecords) {
+      let hasOwnedMutationNode = false;
+      for (const mutationRecord of mutationRecords) {
+        const changedNodes = [
+          ...Array.from(mutationRecord.addedNodes),
+          ...Array.from(mutationRecord.removedNodes)
+        ];
+        if (changedNodes.length === 0) {
+          return false;
+        }
+        for (const node of changedNodes) {
+          if (!isBmsInfoOwnedMutationNode(node)) {
+            return false;
+          }
+          hasOwnedMutationNode = true;
+        }
+      }
+      return hasOwnedMutationNode;
+    }
+
+    function isBmsInfoOwnedMutationNode(node) {
+      return node instanceof Element
+        && (
+          node.id === "bmsdata-container"
+          || node.id === PreviewRuntime.PREVIEW_OVERLAY_HOST_ID
+        );
     }
 
     function stopObserving() {
@@ -920,16 +1328,28 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
 
     installLocationChangeHookOnce();
 
-    if (document.readyState === "complete") {
-      console.info("🔥 loadイベントは発火済でした");
+    function handleReadyEvent(eventName) {
+      console.info(`🔥 ${eventName}イベントが発火しました`);
       startObserving();
-      void runUpdate();
-    } else {
+      scheduleRunUpdate();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener('DOMContentLoaded', () => {
+        handleReadyEvent("DOMContentLoaded");
+      }, { once: true });
       window.addEventListener('load', () => {
-        console.info("🔥 loadイベントが発火しました");
-        startObserving();
-        void runUpdate();
-      });
+        handleReadyEvent("load");
+      }, { once: true });
+    } else {
+      console.info("🔥 DOMContentLoadedイベントは発火済でした");
+      startObserving();
+      scheduleRunUpdate();
+      if (document.readyState !== "complete") {
+        window.addEventListener('load', () => {
+          handleReadyEvent("load");
+        }, { once: true });
+      }
     }
 
     document.addEventListener("visibilitychange", () => {
@@ -938,7 +1358,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         return;
       }
       startObserving();
-      void runUpdate();
+      scheduleRunUpdate();
     });
 
     window.addEventListener("locationchange", () => {
@@ -946,17 +1366,24 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         return;
       }
 
+      const previousUrl = lastUrl;
       lastUrl = location.href;
       completedUrl = null;
+      pendingRouteUpdate = false;
+      routeGeneration += 1;
+      requestedRetryCount = 0;
       console.log("🔄 URLが変化しました:", lastUrl);
+      try {
+        cleanupPage?.({ previousUrl, currentUrl: lastUrl });
+      } catch (error) {
+        console.warn(`${siteName}: SPA遷移時のcleanupに失敗しました`, error);
+      }
       // SPA 遷移で DOM が差し替わる前に、前ページの preview runtime を破棄する。
       resetActiveBmsPreviewRuntime();
 
       if (matchUrl(location.href)) {
         startObserving();
-        if (!document.hidden) {
-          void runUpdate();
-        }
+        scheduleRunUpdate({ queueIfUpdating: true });
       } else {
         stopObserving();
       }
@@ -971,6 +1398,39 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     }
     activeBmsPreviewRuntime.destroy();
     activeBmsPreviewRuntime = null;
+  }
+
+  /**
+   * 挿入済みの拡張パネルと、それに紐づく preview runtime を破棄する。
+   * @param {Element|null|undefined} container
+   * @returns {void}
+   */
+  function destroyBmsDataContainer(container) {
+    if (!container) {
+      return;
+    }
+    const runtime = container.__bmsPreviewRuntime;
+    if (runtime) {
+      runtime.destroy();
+      if (activeBmsPreviewRuntime === runtime) {
+        activeBmsPreviewRuntime = null;
+      }
+      container.__bmsPreviewRuntime = null;
+    }
+    container.remove();
+  }
+
+  /**
+   * 条件に合う拡張パネルをすべて削除する。
+   * @param {(container: Element) => boolean} predicate
+   * @returns {void}
+   */
+  function removeBmsDataContainers(predicate) {
+    for (const container of document.querySelectorAll("#bmsdata-container")) {
+      if (predicate(container)) {
+        destroyBmsDataContainer(container);
+      }
+    }
   }
 
   /**
@@ -1070,12 +1530,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: targetmd5, sha256: null, bmsid: null },
           insertion,
-          theme: BMS_IR_THEME
+          theme: BMS_IR_THEME,
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.bmsIr
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
         } else {
           console.error("❌ 外部データの取得とページの書き換えが失敗しました");
@@ -1146,10 +1608,12 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       const pageContext = {
         identifiers,
         insertion: { element: insertionElement, position: "beforebegin" },
-        theme: BOKUTACHI_THEME
+        theme: BOKUTACHI_THEME,
+        currentSite: PreviewRuntime.PREVIEW_LINK_SITE.bokutachi
       };
       const container = insertBmsDataTemplate(pageContext);
-      if (await insertBmsData(pageContext, container)) {
+      const insertResult = await insertBmsData(pageContext, container);
+      if (insertResult.ok) {
         insertionElement.remove();
         markUpdated();
         console.info("✅ 外部データの取得とページの書き換えが成功しました");
@@ -1200,6 +1664,206 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       return BMS_IR_MD5_PATTERN.test(md5 ?? "") ? md5.toLowerCase() : null;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * STELLAVERSE IR の meta-box から MD5 行の値を取り出す。
+   * @param {Element} metaBox
+   * @returns {string|null}
+   */
+  function extractStellaverseIrMetaMd5(metaBox) {
+    for (const row of metaBox.querySelectorAll("tr")) {
+      const cells = Array.from(row.children);
+      for (let index = 0; index < cells.length - 1; index += 1) {
+        const label = cells[index].textContent.trim().replace(/\s+/g, "").toUpperCase();
+        if (label !== "MD5") {
+          continue;
+        }
+        const match = cells[index + 1].textContent.match(/[0-9a-fA-F]{32}/);
+        return match ? match[0].toLowerCase() : null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 現在URLと同じ曲を表示している STELLAVERSE IR のDOM参照を取得する。
+   * @param {string} targetmd5
+   * @returns {{ box: Element, chartHeader: Element, metaBox: Element, md5: string }|null}
+   */
+  function getStellaverseIrChartDomContext(targetmd5) {
+    const box = document.getElementById("box");
+    const chartHeader = document.querySelector(STELLAVERSE_IR_SELECTORS.chartHeader);
+    const metaBox = document.querySelector(STELLAVERSE_IR_SELECTORS.metaBox);
+    if (!box || !chartHeader || !metaBox || chartHeader.parentElement !== box || metaBox.parentElement !== box) {
+      return null;
+    }
+
+    const md5 = extractStellaverseIrMetaMd5(metaBox);
+    if (md5 !== targetmd5) {
+      return null;
+    }
+
+    return { box, chartHeader, metaBox, md5 };
+  }
+
+  /**
+   * STELLAVERSE IR で挿入した拡張パネルかどうかを判定する。
+   * siteId がないものは、旧版が挿入した同一サイト上のパネルとして扱う。
+   * @param {Element} container
+   * @returns {boolean}
+   */
+  function isStellaverseIrBmsDataContainer(container) {
+    const siteId = container.dataset?.bmsieSite;
+    return siteId === STELLAVERSE_IR_SITE_ID || !siteId;
+  }
+
+  /**
+   * STELLAVERSE IR の拡張パネルをすべて削除する。
+   * @returns {void}
+   */
+  function cleanupStellaverseIrBmsDataContainers() {
+    removeBmsDataContainers(isStellaverseIrBmsDataContainer);
+  }
+
+  /**
+   * 現在ページ以外の STELLAVERSE IR 拡張パネルを削除する。
+   * @param {string} pageKey
+   * @returns {void}
+   */
+  function cleanupStellaverseIrBmsDataContainersExcept(pageKey) {
+    removeBmsDataContainers((container) => {
+      if (!isStellaverseIrBmsDataContainer(container)) {
+        return false;
+      }
+      return container.dataset?.bmsiePageKey !== pageKey;
+    });
+  }
+
+  /**
+   * STELLAVERSE IR の現在ページ用パネルを取得する。
+   * @param {string} pageKey
+   * @returns {Element|null}
+   */
+  function findStellaverseIrBmsDataContainer(pageKey) {
+    return Array.from(document.querySelectorAll("#bmsdata-container")).find((container) => {
+      return container.dataset?.bmsieSite === STELLAVERSE_IR_SITE_ID
+        && container.dataset?.bmsiePageKey === pageKey;
+    }) ?? null;
+  }
+
+  /**
+   * STELLAVERSE IR の拡張パネルが現在の chart-header 直後に残っているか判定する。
+   * @param {Element} container
+   * @param {string} pageKey
+   * @param {{ chartHeader: Element }} domContext
+   * @returns {boolean}
+   */
+  function isCurrentStellaverseIrBmsDataContainer(container, pageKey, domContext) {
+    return container.isConnected
+      && container.dataset?.bmsieSite === STELLAVERSE_IR_SITE_ID
+      && container.dataset?.bmsiePageKey === pageKey
+      && Boolean(container.__bmsPreviewRuntime)
+      && domContext.chartHeader.nextElementSibling === container;
+  }
+
+  /**
+   * 次の animation frame を待つ。
+   * @returns {Promise<void>}
+   */
+  function waitForAnimationFrame() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  /**
+   * 挿入直後のSPA差し替えが落ち着いても、パネルが現在ページに残っているか確認する。
+   * @param {Element} container
+   * @param {string} pageKey
+   * @returns {Promise<boolean>}
+   */
+  async function waitForStellaverseIrPanelToSettle(container, pageKey) {
+    await waitForAnimationFrame();
+    await waitForAnimationFrame();
+    const domContext = getStellaverseIrChartDomContext(pageKey);
+    return Boolean(domContext && isCurrentStellaverseIrBmsDataContainer(container, pageKey, domContext));
+  }
+
+  // ====================================================================================================
+  // STELLAVERSE IR
+  //   MD5 を含む曲ページに共通の拡張パネルを追加する
+  // ====================================================================================================
+  /**
+   * STELLAVERSE IR 向けの拡張処理を初期化する。
+   * @returns {Promise<void>}
+   */
+  async function stellaverseIr() {
+    console.info("STELLAVERSE IRの処理に入りました");
+    watchSpaPage({
+      siteName: "STELLAVERSE IR",
+      matchUrl: isStellaverseIrChartUrl,
+      updatePage,
+      cleanupPage: cleanupStellaverseIrBmsDataContainers
+    });
+
+    // ==================================================================================================
+    // 曲ページの書き換え処理
+    async function updatePage({ markUpdated }) {
+      const targetmd5 = getStellaverseIrChartMd5(location.href);
+      if (!targetmd5) {
+        return;
+      }
+      console.info("STELLAVERSE IR曲ページの書き換え処理に入りました");
+
+      cleanupStellaverseIrBmsDataContainersExcept(targetmd5);
+
+      const domContext = getStellaverseIrChartDomContext(targetmd5);
+      if (!domContext) {
+        console.info("❌ STELLAVERSE IRのページ書き換えはスキップされました。現在URLに対応する差し込み先がまだ見つかりませんでした");
+        return;
+      }
+
+      const existingContainer = findStellaverseIrBmsDataContainer(targetmd5);
+      if (existingContainer) {
+        if (isCurrentStellaverseIrBmsDataContainer(existingContainer, targetmd5, domContext)) {
+          console.info("既に現在ページ用のbmsdataが挿入済みのためスキップします");
+          markUpdated();
+          return;
+        }
+        destroyBmsDataContainer(existingContainer);
+      }
+
+      const pageContext = {
+        identifiers: { md5: targetmd5, sha256: null, bmsid: null },
+        insertion: { element: domContext.chartHeader, position: "afterend" },
+        theme: STELLAVERSE_IR_THEME,
+        currentSite: STELLAVERSE_IR_SITE_ID,
+        siteId: STELLAVERSE_IR_SITE_ID,
+        pageKey: targetmd5
+      };
+      const container = insertBmsDataTemplate(pageContext);
+      const insertResult = await insertBmsData(pageContext, container);
+      if (insertResult.ok) {
+        if (getStellaverseIrChartMd5(location.href) !== targetmd5) {
+          destroyBmsDataContainer(container);
+          return;
+        }
+        if (!await waitForStellaverseIrPanelToSettle(container, targetmd5)) {
+          console.info("STELLAVERSE IRのDOM差し替え後にbmsdataが残らなかったため、再試行を待ちます");
+          destroyBmsDataContainer(container);
+          return { retry: true };
+        }
+        console.info("✅ 外部データの取得とページの書き換えが成功しました");
+        markUpdated();
+      } else {
+        if (insertResult.reason === "detached") {
+          console.info("STELLAVERSE IRのデータ取得中にbmsdataがDOMから外されたため、再試行を待ちます");
+          return { retry: true };
+        }
+        console.error("❌ 外部データの取得とページの書き換えが失敗しました");
+      }
     }
   }
 
@@ -1304,12 +1968,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: targetmd5, sha256: null, bmsid: null },
           insertion: { element: tableContainer, position: "beforeend" },
-          theme: isDarkMode ? STELLAVERSE_THEMES.dark : STELLAVERSE_THEMES.light
+          theme: isDarkMode ? STELLAVERSE_THEMES.dark : STELLAVERSE_THEMES.light,
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.stellaverse
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
           // STELLAVERSE 側と完全に重複する行だけを消し、補助情報のある行は残す。
           const rowsToRemoveAfterSuccess = STELLAVERSE_INDEXES.removeRowsAfterSuccess
@@ -1367,12 +2033,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: null, sha256: targetsha256, bmsid: null },
           insertion: { element: htmlTargetElement, position: htmlTargetDest },
-          theme: { dctx: "#1A202C", dcbk: "#ffffff", hdtx: "#000000DE", hdbk: "#f1f1f1" }
+          theme: { dctx: "#1A202C", dcbk: "#ffffff", hdtx: "#000000DE", hdbk: "#f1f1f1" },
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.minir
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           console.info("✅ 外部データの取得とページの書き換えが成功しました");
           markUpdated();
         } else {
@@ -1434,12 +2102,14 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
         const pageContext = {
           identifiers: { md5: null, sha256: targetsha256, bmsid: null },
           insertion: { element: htmlTargetElement, position: htmlTargetDest },
-          theme: MOCHA_THEME
+          theme: MOCHA_THEME,
+          currentSite: PreviewRuntime.PREVIEW_LINK_SITE.mocha
         };
         // テンプレートを挿入
         const container = insertBmsDataTemplate(pageContext);
         // 外部から取得したデータでテンプレートを置換
-        if (await insertBmsData(pageContext, container)) {
+        const insertResult = await insertBmsData(pageContext, container);
+        if (insertResult.ok) {
           // 最後まで置換がうまく行った場合
           if (songInfoTable) {
             // Mocha 側と完全に重複する行だけを落とし、残す行の並びは変えない。
@@ -1531,28 +2201,38 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
    * @returns {HTMLElement}
    */
   function insertBmsDataTemplate(pageContext) {
-    return PreviewRuntime.insertBmsDataContainer({
+    const container = PreviewRuntime.insertBmsDataContainer({
       documentRef: document,
       insertion: pageContext.insertion,
       theme: pageContext.theme,
     });
+    if (pageContext.siteId) {
+      container.dataset.bmsieSite = pageContext.siteId;
+    }
+    if (pageContext.pageKey) {
+      container.dataset.bmsiePageKey = pageContext.pageKey;
+    }
+    return container;
   }
 
   /**
    * 外部データ取得から描画、グラフ描画までのパイプラインを実行する。
    * @param {PageContext} pageContext
    * @param {HTMLElement} container
-   * @returns {Promise<boolean>}
+   * @returns {Promise<InsertBmsDataResult>}
    */
   async function insertBmsData(pageContext, container) {
     // 取得失敗時は差し込んだ空パネルを片付けて終了する。
     const normalizedRecord = await PreviewRuntime.fetchBmsInfoRecordByIdentifiers(pageContext.identifiers);
     if (!normalizedRecord) {
-      container.remove();
-      return false;
+      destroyBmsDataContainer(container);
+      return { ok: false, reason: "not-found" };
+    }
+    if (container.isConnected === false) {
+      return { ok: false, reason: "detached" };
     }
 
-    PreviewRuntime.renderBmsData(container, normalizedRecord);
+    PreviewRuntime.renderBmsData(container, normalizedRecord, { currentSite: pageContext.currentSite });
     if (container.__bmsPreviewRuntime) {
       container.__bmsPreviewRuntime.destroy();
     }
@@ -1570,6 +2250,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
     container.__bmsPreviewRuntime = PreviewRuntime.createBmsInfoPreview({
       container,
       documentRef: document,
+      currentSite: pageContext.currentSite,
       loadParsedScore: async (record) => {
         const loaderContext = await ensureScoreLoaderContext();
         const parsedResult = await loaderContext.loader.loadParsedScore(record.sha256.toLowerCase());
@@ -1593,7 +2274,7 @@ import { createScoreLoader } from "../../web/score-parser-runtime/src/score_load
       void container.__bmsPreviewRuntime.prefetch();
     }
 
-    return true;
+    return { ok: true, reason: "success" };
   }
 
   /**
